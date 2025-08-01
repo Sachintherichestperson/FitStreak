@@ -53,3 +53,4 @@ Temp/
 **/Local/
 **/Microsoft/
 **/Temp/
+android/app/*.json
