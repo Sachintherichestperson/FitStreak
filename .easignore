@@ -1,0 +1,7 @@
+**/AppData/
+**/Temp/
+**/Local/
+**/Microsoft/
+*.tmp
+*.log
+*.xml

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "511067574099",
+    "project_id": "fitstreak-ef94c",
+    "storage_bucket": "fitstreak-ef94c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:511067574099:android:78123757bc15c4e83edba6",
+        "android_client_info": {
+          "package_name": "com.anonymous.MyFirstApp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHT4NjBK5sW0aMA02U8TwRmGB3g7w9nik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
