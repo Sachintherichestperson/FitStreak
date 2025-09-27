@@ -26,7 +26,7 @@ const Scanner = () => {
   const token = await AsyncStorage.getItem('Token');
   
   try {
-    const response = await fetch(`http://192.168.225.177:3000/Home/Scan`, {
+    const response = await fetch(`http://192.168.1.70:3000/Home/Scan`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

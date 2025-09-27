@@ -4,12 +4,14 @@ const Usermongo = require('../models/User-mongo');
 const isloggedin = require('../middleware/isloggein');
 const Badgesfunc = require('../functions/Badges-func');
 const Badgemongo = require('../models/Badgesmongo');
+const getDuosRanking = require('../functions/Duo-Ranking');
 
 router.get('/', isloggedin, async (req, res) => {
   try {
     const user = await Usermongo.findById(req.user._id).populate('Badges');
     if (!user) return res.status(404).json({ error: "User not found" });
 
+    // Check and award streak badge
     const badgeInfo = Badgesfunc.getStreakBadge(user.Streak.Scan);
     const nextBadges = Badgesfunc.getNextBadges(user.Streak.Scan);
 
@@ -29,11 +31,25 @@ router.get('/', isloggedin, async (req, res) => {
       await newBadge.save();
     }
 
+    // Check and award special badges
+    for (const badge of Badgesfunc.specialbadges) {
+      const hasBadge = user.Badges?.some(b => b.name === badge.name);
+      if (badge.condition(user) && !hasBadge) {
+        const newBadge = new Badgemongo({
+          userId: user._id,
+          name: badge.name,
+          emoji: badge.emoji,
+          description: badge.description,
+        });
+        await newBadge.save();
+        user.Badges.push(newBadge._id);
+      }
+    }
+
     await user.save();
 
     const allSpecialBadges = Badgesfunc.specialbadges.map(badge => {
       const hasBadge = user.Badges?.some(b => b.name === badge.name);
-
       return {
         ...badge,
         earned: hasBadge
@@ -68,4 +84,16 @@ router.get('/Accountability-Buddy', isloggedin, async(req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+router.get('/Duo-Ranking', isloggedin, async(req, res) => {
+  try {
+    const result = await getDuosRanking();
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
 module.exports = router;

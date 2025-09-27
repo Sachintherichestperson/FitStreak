@@ -4,7 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Animated,
     Dimensions,
+    Easing,
     FlatList,
     Image,
     ImageBackground,
@@ -14,46 +16,72 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 const FitStreakCommunity = () => {
   const badgeImages: { [key: string]: any } = {
-      Tiger : require('../../assets/images/Tiger.png'),
-      Panther : require('../../assets/images/Panther.png'),
-      Dragon : require('../../assets/images/Dragon.png'),
-      Elephant : require('../../assets/images/Elephant.png'),
-      Goat : require('../../assets/images/Goat.png'),
-      Lion : require('../../assets/images/Lion.png'),
-      Bison : require('../../assets/images/Bison.png'),
-      Rabbit : require('../../assets/images/Rabbit.png'),
-      Phoenix : require('../../assets/images/Phoniex.png'),
-      Griffin : require('../../assets/images/Griffen.png'),
-      Beast : require('../../assets/images/Beast.png'),
-      Fox : require('../../assets/images/Fox.png'),
-      Ant : require('../../assets/images/Ant.png'),
-      Wolf : require('../../assets/images/Wolf.png'),
-      Fish : require('../../assets/images/fish.png'),
-      Cat : require('../../assets/images/Cat.png'),
-      Rhino : require('../../assets/images/Rhino.png'),
-      Frog : require('../../assets/images/Frog.png'),
-      Owl : require('../../assets/images/owl.png'),
-      Squirrel : require('../../assets/images/Squirrel.png'),
-      Horse : require('../../assets/images/Horse.png'),
-      Dog : require('../../assets/images/Dog.png'),
-      Shark : require('../../assets/images/Shark.png'),
-      Falcon : require('../../assets/images/Falcon.png'),
-      Bettle : require('../../assets/images/Bettle.png'),
-      Bear : require('../../assets/images/Bear.png'),
-      Crown : require('../../assets/images/Crown.png'),
+      Tiger: require('../../assets/images/Tiger.png'),
+      Panther: require('../../assets/images/Panther.png'),
+      Dragon: require('../../assets/images/Dragon.png'),
+      Elephant: require('../../assets/images/Elephant.png'),
+      Goat: require('../../assets/images/Goat.png'),
+      Lion: require('../../assets/images/Lion.png'),
+      Bison: require('../../assets/images/Bison.png'),
+      Rabbit: require('../../assets/images/Rabbit.png'),
+      Phoenix: require('../../assets/images/Phoniex.png'),
+      Griffin: require('../../assets/images/Griffen.png'),
+      Beast: require('../../assets/images/Beast.png'),
+      Fox: require('../../assets/images/Fox.png'),
+      Ant: require('../../assets/images/Ant.png'),
+      Wolf: require('../../assets/images/Wolf.png'),
+      Fish: require('../../assets/images/fish.png'),
+      Cat: require('../../assets/images/Cat.png'),
+      Rhino: require('../../assets/images/Rhino.png'),
+      Frog: require('../../assets/images/Frog.png'),
+      Owl: require('../../assets/images/owl.png'),
+      Squirrel: require('../../assets/images/Squirrel.png'),
+      Horse: require('../../assets/images/Horse.png'),
+      Dog: require('../../assets/images/Dog.png'),
+      Shark: require('../../assets/images/Shark.png'),
+      Falcon: require('../../assets/images/Falcon.png'),
+      Bettle: require('../../assets/images/Bettle.png'),
+      Bear: require('../../assets/images/Bear.png'),
+      Crown: require('../../assets/images/Crown.png'),
   };
+
   const [activeTab, setActiveTab] = useState('anonymous');
-  const [showContract, setShowContract] = useState(false);
-  const [anonymousPosts, setAnonymousPosts] = useState([]);
-  const [leaderboardData, setLeaderboardData] = useState([]);
-  const [currentUserRank, setCurrentUserRank] = useState(null);
+  type AnonymousPost = {
+    _id: string;
+    Content: string;
+    timeAgo?: string;
+    Biceps: string[];
+    Fire: string[];
+    Boring: string[];
+    bicepsAnim: Animated.Value;
+    fireAnim: Animated.Value;
+    boringAnim: Animated.Value;
+    userReactions: {
+      Biceps: boolean;
+      Fire: boolean;
+      Boring: boolean;
+    };
+  };
+
+  const [anonymousPosts, setAnonymousPosts] = useState<AnonymousPost[]>([]);
+  type LeaderboardUser = {
+    rank: number;
+    name: string;
+    streak: number;
+    badge: string;
+    emoji: string;
+    points: number;
+  };
+
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardUser[]>([]);
+  const [currentUserRank, setCurrentUserRank] = useState<LeaderboardUser | null>(null);
   const [topPerformers, setTopPerformers] = useState([]);
   const [loading, setLoading] = useState({
     leaderboard: true,
@@ -61,11 +89,10 @@ const FitStreakCommunity = () => {
   });
   const [refreshing, setRefreshing] = useState(false);
 
-
   const fetchBackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.225.177:3000/Community/', {
+      const response = await fetch('http://192.168.29.104:3000/Community/', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -73,7 +100,18 @@ const FitStreakCommunity = () => {
         },
       });
       const data = await response.json();
-      setAnonymousPosts(data.posts);
+      // Assuming the backend returns the current user's ID as data.currentUserId
+      setAnonymousPosts(data.posts.map((post: { Biceps: string | any[]; Fire: string | any[]; Boring: string | any[]; }) => ({
+        ...post,
+        bicepsAnim: new Animated.Value(1),
+        fireAnim: new Animated.Value(1),
+        boringAnim: new Animated.Value(1),
+        userReactions: {
+          Biceps: post.Biceps.includes(data.currentUserId),
+          Fire: post.Fire.includes(data.currentUserId),
+          Boring: post.Boring.includes(data.currentUserId)
+        }
+      })));
       setLoading(prev => ({ ...prev, community: false }));
     } catch (error) {
       console.error('Error fetching community data:', error);
@@ -82,44 +120,112 @@ const FitStreakCommunity = () => {
   };
 
   const fetchLeaderboardData = async () => {
-  try {
-    const token = await AsyncStorage.getItem('Token');
-    const response = await fetch('http://192.168.225.177:3000/Community/Leaderboard', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Server error: ${response.status} - ${errorText}`);
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      const response = await fetch('http://192.168.29.104:3000/Community/Leaderboard', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      setLeaderboardData(data.leaderboard);
+      setCurrentUserRank(data.currentUserRank);
+      
+      setTopPerformers(data.leaderboard.slice(0, 5).map((user: { name: any; streak: any; emoji: string | number; }, index: number) => ({
+        id: `l${index + 1}`,
+        name: user.name,
+        streak: user.streak,
+        badge: getBadgeEmoji(index + 1),
+        badgeImage: badgeImages[user.emoji]
+      })));
+      
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, leaderboard: false }));
     }
-    
-    const data = await response.json();
-    
-    setLeaderboardData(data.leaderboard);
-    setCurrentUserRank(data.currentUserRank);
-    
-    // Get top 5 performers for the carousel
-    setTopPerformers(data.leaderboard.slice(0, 5).map((user, index) => ({
-      id: `l${index + 1}`,
-      name: user.name,
-      streak: user.streak,
-      badge: getBadgeEmoji(index + 1),
-      badgeImage: badgeImages[user.emoji] || badgeImages['Beast']
-    })));
-    
-  } catch (error) {
-    console.error('Error fetching leaderboard:', error);
-  } finally {
-    setLoading(prev => ({ ...prev, leaderboard: false }));
-  }
-};
+  };
 
-  // Helper function to assign badges based on rank
-  const getBadgeEmoji = (rank) => {
+  const ReactToPost = async (postId: string, reactionType: string) => {
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      const response = await fetch(`http://192.168.29.104:3000/Community/Reaction/${postId}?type=${reactionType}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if(response.ok) {
+        const updatedPost = await response.json();
+        
+        setAnonymousPosts(prevPosts => 
+          prevPosts.map(post => {
+            if(post._id === postId) {
+              const animValue = reactionType === 'Biceps' ? post.bicepsAnim : 
+                              reactionType === 'Fire' ? post.fireAnim : post.boringAnim;
+              
+              Animated.sequence([
+                Animated.timing(animValue, {
+                  toValue: 1.5,
+                  duration: 100,
+                  easing: Easing.linear,
+                  useNativeDriver: true
+                }),
+                Animated.timing(animValue, {
+                  toValue: 0.8,
+                  duration: 100,
+                  easing: Easing.linear,
+                  useNativeDriver: true
+                }),
+                Animated.timing(animValue, {
+                  toValue: 1.2,
+                  duration: 100,
+                  easing: Easing.linear,
+                  useNativeDriver: true
+                }),
+                Animated.timing(animValue, {
+                  toValue: 1,
+                  duration: 100,
+                  easing: Easing.linear,
+                  useNativeDriver: true
+                })
+              ]).start();
+
+              // Create new user reactions object
+              const newUserReactions = {
+                Biceps: reactionType === 'Biceps',
+                Fire: reactionType === 'Fire',
+                Boring: reactionType === 'Boring'
+              };
+
+              return {
+                ...post,
+                Biceps: updatedPost.Biceps,
+                Fire: updatedPost.Fire,
+                Boring: updatedPost.Boring,
+                userReactions: newUserReactions
+              };
+            }
+            return post;
+          })
+        );
+      }
+    } catch (error) {
+      console.error('Error reacting to post:', error);
+    }
+  };
+
+  const getBadgeEmoji = (rank: number) => {
     switch(rank) {
       case 1: return '👑';
       case 2: return '🥈';
@@ -153,7 +259,6 @@ const FitStreakCommunity = () => {
     }
   }, [activeTab]);
 
-  // Teams data
   const teamsData = [
     { id: 't1', name: 'Team Alpha', rank: '🥇', avg: 63, members: 12 },
     { id: 't2', name: 'Iron Legion', rank: '🥈', avg: 57, members: 8 },
@@ -162,146 +267,110 @@ const FitStreakCommunity = () => {
     { id: 't5', name: 'Cardio Kings', rank: '5', avg: 38, members: 7 },
   ];
 
-  const renderAnonymousPost = ({ item }) => (
-    <View style={styles.postCard}>
-      <Text style={styles.postContent}>{item.Content}</Text>
-      <View style={styles.postMeta}>
-        <Text style={styles.postTime}>{item.timeAgo}</Text>
-        <View style={styles.postReactions}>
-          <TouchableOpacity style={styles.reactionBtn}>
-            <Text style={styles.reactionText}>💪 { item.Biceps }</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.reactionBtn}>
-            <Text style={styles.reactionText}>🔥 {item.Fire}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.reactionBtn}>
-            <Text style={styles.reactionText}>😴 {item.Boring}</Text>
-          </TouchableOpacity>
+  const renderAnonymousPost = ({ item }: { item: any }) => {
+    const bicepsStyle = {
+      transform: [{ scale: item.bicepsAnim }]
+    };
+    
+    const fireStyle = {
+      transform: [{ scale: item.fireAnim }]
+    };
+    
+    const boringStyle = {
+      transform: [{ scale: item.boringAnim }]
+    };
+
+    return (
+      <View style={styles.postCard}>
+        <Text style={styles.postContent}>{item.Content}</Text>
+        <View style={styles.postMeta}>
+          <Text style={styles.postTime}>{item.timeAgo}</Text>
+          <View style={styles.postReactions}>
+            <TouchableOpacity
+              style={styles.reactionBtn}
+              onPress={() => ReactToPost(item._id, 'Biceps')}
+            >
+              <Animated.Text style={[
+                styles.reactionText,
+                bicepsStyle,
+                item.userReactions.Biceps && styles.activeReactionText
+              ]}>
+                💪 { item.Biceps?.length || 0 }
+              </Animated.Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.reactionBtn}
+              onPress={() => ReactToPost(item._id, 'Fire')}
+            >
+              <Animated.Text style={[
+                styles.reactionText,
+                fireStyle,
+                item.userReactions.Fire && styles.activeReactionText
+              ]}>
+                🔥 { item.Fire?.length || 0 }
+              </Animated.Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.reactionBtn}
+              onPress={() => ReactToPost(item._id, 'Boring')}
+            >
+              <Animated.Text style={[
+                styles.reactionText,
+                boringStyle,
+                item.userReactions.Boring && styles.activeReactionText
+              ]}>
+                😴 { item.Boring?.length || 0 }
+              </Animated.Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
-  const renderContractPost = ({ item }) => (
-    <View style={styles.postCard}>
-      <Text style={styles.postContent}>{item.content}</Text>
-      <View style={styles.contractDetails}>
-        <View style={styles.contractStat}>
-          <Ionicons name="cash-outline" size={14} color="#00f5ff" />
-          <Text style={styles.contractStatText}>Stakes: {item.stakes}</Text>
-        </View>
-        <View style={styles.contractStat}>
-          <Ionicons name="calendar-outline" size={14} color="#00f5ff" />
-          <Text style={styles.contractStatText}>{item.days} days</Text>
-        </View>
-      </View>
-      <View style={styles.contractMeta}>
-        <Text style={styles.postTime}>{item.time}</Text>
-        <View style={styles.contractButtons}>
-          <TouchableOpacity style={[styles.actionButton, styles.loseButton]}>
-            <Text style={styles.buttonText}>👎 Decline</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionButton, styles.winButton]}>
-            <Text style={styles.buttonText}>🔥 Accept</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderTopPerformer = ({ item }) => (
-  <View style={styles.leaderCard}>
-    <View style={styles.leaderAvatar}>
-      {item.badgeImage ? (
-        <Image 
-          source={item.badgeImage} 
-          style={styles.badgeImage}
-          resizeMode="contain"
-        />
-      ) : (
-        <Text>{item.badge}</Text>
-      )}
-    </View>
-    <Text style={styles.leaderName}>{item.name}</Text>
-    <Text style={styles.leaderStats}>🔥 {item.streak} Days</Text>
-    <Text style={styles.leaderBadge}>{item.badge}</Text>
-  </View>
-);
-
-  const renderLeaderboardRow = ({ item }) => (
-  <View style={styles.tableRow}>
-    <Text style={[styles.cellRank, item.rank === 1 && styles.goldRank, item.rank === 2 && styles.silverRank, item.rank === 3 && styles.bronzeRank]}>
-      {item.rank}
-    </Text>
-    <View style={styles.cellUser}>
-      <View style={styles.userAvatar}>
-        {badgeImages[item.emoji] ? (
+  const renderTopPerformer = ({ item }: { item: { id: string; name: string; streak: number; badge: string; badgeImage?: any } }) => (
+    <View style={styles.leaderCard}>
+      <View style={styles.leaderAvatar}>
+        {item.badgeImage ? (
           <Image 
-            source={badgeImages[item.emoji]} 
-            style={styles.badgeImageSmall}
+            source={item.badgeImage} 
+            style={[styles.badgeImage, { tintColor: '#009e76b3' }]}
             resizeMode="contain"
           />
         ) : (
-          <Text>{item.emoji}</Text>
+          <Text>{item.badge}</Text>
         )}
       </View>
-      <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.name}</Text>
-        <Text style={styles.userBadge}>{item.badge}</Text>
-      </View>
-    </View>
-    <Text style={styles.cellStreak}>🔥 {item.streak}d</Text>
-    <Text style={styles.cellPoints}>{item.points.toLocaleString()}</Text>
-  </View>
-);
-
-  const renderTeam = ({ item }) => (
-    <View style={styles.teamCard}>
-      <View style={styles.teamInfo}>
-        <View style={styles.teamBadge}>
-          <Text>{item.rank}</Text>
-        </View>
-        <View>
-          <Text style={styles.teamName}>{item.name}</Text>
-          <Text style={styles.teamMembers}>{item.members} members</Text>
-        </View>
-      </View>
-      <View style={styles.teamStats}>
-        <Text style={styles.teamAvg}>{item.avg} Day Avg</Text>
-        <Text style={styles.teamStreak}>🔥 {Math.floor(item.avg * 1.3)} streak</Text>
-      </View>
+      <Text style={styles.leaderName}>{item.name}</Text>
+      <Text style={styles.leaderStats}>🔥 {item.streak} Days</Text>
+      <Text style={styles.leaderBadge}>{item.badge}</Text>
     </View>
   );
 
-  const AnonymousSection = () => (
-    <View style={styles.tabContent}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Anonymous Zone</Text>
-      </View>
-
-      {!showContract ? (
-        <>
-          <Text style={styles.sectionDescription}>
-            Share your fitness journey anonymously. No judgments, just support.
-          </Text>
-          {loading.community ? (
-            <ActivityIndicator size="large" color="#00ff9d" style={styles.loadingIndicator} />
-          ) : (
-            <FlatList
-              data={anonymousPosts}
-              renderItem={renderAnonymousPost}
-              keyExtractor={item => item._id}
-              scrollEnabled={false}
+  const renderLeaderboardRow = ({ item }) => (
+    <View style={styles.tableRow}>
+      <Text style={[styles.cellRank, item.rank === 1 && styles.goldRank, item.rank === 2 && styles.silverRank, item.rank === 3 && styles.bronzeRank]}>
+        {item.rank}
+      </Text>
+      <View style={styles.cellUser}>
+        <View style={styles.userAvatar}>
+          {badgeImages[item.emoji] ? (
+            <Image 
+              source={badgeImages[item.emoji]} 
+              style={styles.badgeImageSmall}
+              resizeMode="contain"
             />
+          ) : (
+            <Text>{item.emoji}</Text>
           )}
-        </>
-      ) : (
-        <>
-          <Text style={styles.sectionDescription}>
-            Commit to challenges with stakes. Money on the line means motivation through the roof.
-          </Text>
-        </>
-      )}
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>{item.name}</Text>
+          <Text style={styles.userBadge}>{item.badge}</Text>
+        </View>
+      </View>
+      <Text style={styles.cellStreak}>🔥 {item.streak}d</Text>
+      <Text style={styles.cellPoints}>{item.points.toLocaleString()}</Text>
     </View>
   );
 
@@ -335,7 +404,6 @@ const FitStreakCommunity = () => {
             <Text style={styles.headerPoints}>Points</Text>
           </View>
           
-          {/* Show current user first if not in top 10 */}
           {currentUserRank && currentUserRank.rank > 10 && (
             <View style={[styles.tableRow, styles.currentUserRow]}>
               <Text style={[styles.cellRank, styles.currentUserRank]}>{currentUserRank.rank}</Text>
@@ -353,7 +421,6 @@ const FitStreakCommunity = () => {
             </View>
           )}
           
-          {/* Top 10 leaderboard */}
           <FlatList
             data={leaderboardData}
             renderItem={renderLeaderboardRow}
@@ -365,15 +432,25 @@ const FitStreakCommunity = () => {
     );
   };
 
-  const TeamsSection = () => (
+  const AnonymousSection = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.sectionTitle}>Team Rankings</Text>
-      <FlatList
-        data={teamsData}
-        renderItem={renderTeam}
-        keyExtractor={item => item.id}
-        scrollEnabled={false}
-      />
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Anonymous Zone</Text>
+      </View>
+
+      <Text style={styles.sectionDescription}>
+        Share your fitness journey anonymously. No judgments, just support.
+      </Text>
+      {loading.community ? (
+        <ActivityIndicator size="large" color="#00ff9d" style={styles.loadingIndicator} />
+      ) : (
+        <FlatList
+          data={anonymousPosts}
+          renderItem={renderAnonymousPost}
+          keyExtractor={item => item._id}
+          scrollEnabled={false}
+        />
+      )}
     </View>
   );
 
@@ -382,7 +459,6 @@ const FitStreakCommunity = () => {
       <ImageBackground
         style={styles.background}
       >
-        {/* Community Header */}
         <View style={styles.communityHeader}>
           <View>
             <Text style={styles.communityTitle}>FitStreak Community</Text>
@@ -394,7 +470,6 @@ const FitStreakCommunity = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Section Navigation Tabs */}
         <View style={styles.sectionTabs}>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'anonymous' && styles.activeTab]}
@@ -411,17 +486,8 @@ const FitStreakCommunity = () => {
             <FontAwesome name="trophy" size={18} color={activeTab === 'leaders' ? '#00ff9d' : '#777'} />
             <Text style={[styles.tabText, activeTab === 'leaders' && styles.activeTabText]}>Leaders</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'teams' && styles.activeTab]}
-            onPress={() => setActiveTab('teams')}
-          >
-            <FontAwesome name="users" size={16} color={activeTab === 'teams' ? '#00ff9d' : '#777'} />
-            <Text style={[styles.tabText, activeTab === 'teams' && styles.activeTabText]}>Teams</Text>
-          </TouchableOpacity>
         </View>
 
-        {/* Content Sections */}
         <ScrollView 
           style={styles.contentContainer}
           refreshControl={
@@ -436,7 +502,6 @@ const FitStreakCommunity = () => {
         >
           {activeTab === 'anonymous' && <AnonymousSection />}
           {activeTab === 'leaders' && <LeadersSection />}
-          {activeTab === 'teams' && <TeamsSection />}
         </ScrollView>
       </ImageBackground>
     </SafeAreaView>
@@ -541,16 +606,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 20,
   },
-  seeAllLink: {
-    color: '#00ff9d',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  contractLink: {
-    color: '#00f5ff',
-    fontSize: 13,
-    fontWeight: '500',
-  },
   postCard: {
     backgroundColor: '#121212',
     borderRadius: 16,
@@ -594,67 +649,10 @@ const styles = StyleSheet.create({
   },
   reactionText: {
     color: 'white',
+    fontSize: 14,
   },
-  contractDetails: {
-    flexDirection: 'row',
-    gap: 15,
-    marginBottom: 15,
-  },
-  contractStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  contractStatText: {
-    fontSize: 13,
-    color: '#00f5ff',
-  },
-  contractMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  contractButtons: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  actionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    alignItems: 'center',
-    minWidth: 100,
-  },
-  loseButton: {
-    backgroundColor: 'rgba(255, 77, 77, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 77, 77, 0.3)',
-  },
-  winButton: {
-    backgroundColor: 'rgba(0, 255, 157, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 255, 157, 0.3)',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '500',
-    fontSize: 13,
-  },
-  contractButton: {
-    backgroundColor: 'rgba(0, 245, 255, 0.1)',
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 15,
-    marginBottom: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 245, 255, 0.3)',
-  },
-  contractButtonText: {
-    color: '#00f5ff',
-    fontWeight: '600',
-    fontSize: 15,
+  activeReactionText: {
+    color: '#00ff9d',
   },
   loadingIndicator: {
     marginVertical: 30,
@@ -823,53 +821,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: 'white',
-  },
-  teamCard: {
-    backgroundColor: '#121212',
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  teamInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  teamBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  teamName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: 'white',
-  },
-  teamMembers: {
-    fontSize: 11,
-    color: '#777',
-    marginTop: 3,
-  },
-  teamStats: {
-    alignItems: 'flex-end',
-  },
-  teamAvg: {
-    fontSize: 14,
-    color: '#00ff9d',
-    fontWeight: '500',
-  },
-  teamStreak: {
-    fontSize: 11,
-    color: '#777',
-    marginTop: 3,
   },
 });
 

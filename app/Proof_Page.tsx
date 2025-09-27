@@ -9,17 +9,29 @@ import { Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity,
 const ChallengeProofSubmission = () => {
   const router = useRouter();
   const { challengeId } = useLocalSearchParams();
-  const [challenge, setChallenge] = useState(null);
-  const [media, setMedia] = useState(null);
+  type Challenge = {
+    Title: string;
+    Description: string;
+    EndDate: string;
+    Duration: number;
+    Challenge_Type: string;
+    ProofType?: string;
+    RewardPoints?: number;
+    BadgeReward?: boolean;
+  };
+  
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
+  const [media, setMedia] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [loading, setLoading] = useState(false);
   const [proofStatus, setProofStatus] = useState('To-be-submitted');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [challengeResult, setChallengeResult] = useState<string | null | undefined>();
 
   useEffect(() => {
     const fetchChallengeDetails = async () => {
       try {
         const token = await AsyncStorage.getItem('Token');
-        const response = await fetch(`http://192.168.225.177:3000/Challenges/${challengeId}`, {
+        const response = await fetch(`http://192.168.29.104:3000/Challenges/Proof/${challengeId}`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -41,19 +53,37 @@ const ChallengeProofSubmission = () => {
     const fetchProofStatus = async () => {
       try {
         const token = await AsyncStorage.getItem('Token');
-        const response = await fetch(`http://192.168.225.177:3000/Challenges/Proof-Status/${challengeId}`, {
+        
+        // Check proof status
+        const proofResponse = await fetch(`http://192.168.29.104:3000/Challenges/Proof-Status/${challengeId}`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
-        const data = await response.json();
+        const proofData = await proofResponse.json();
+        setProofStatus(proofData.status);
         
-        setProofStatus(data.status);
+        // Check challenge result
+        const resultResponse = await fetch(`http://192.168.29.104:3000/Challenges/check-challenge-result/${challengeId}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        const resultData = await resultResponse.json();
+
+        if (resultData.Status) {
+          setChallengeResult(resultData.Status);
+        } else {
+          setChallengeResult(null);
+        }
       } catch (error) {
-        console.error('Error fetching proof status:', error);
+        console.error('Error fetching status:', error);
         setProofStatus('To-be-submitted');
+        setChallengeResult(null);
       }
     };
 
@@ -67,6 +97,10 @@ const ChallengeProofSubmission = () => {
       return;
     }
 
+    if (!challenge) {
+      Alert.alert('Error', 'Challenge details not loaded');
+      return;
+    }
     const mediaType = challenge.ProofType === 'Image' 
       ? ImagePicker.MediaTypeOptions.Images 
       : ImagePicker.MediaTypeOptions.Videos;
@@ -85,7 +119,7 @@ const ChallengeProofSubmission = () => {
   };
 
   const submitProof = async () => {
-    if (!media && challenge.Challenge_Type === 'Proof') {
+    if (!media && challenge && challenge.Challenge_Type === 'Proof') {
       Alert.alert('Proof required', 'Please provide proof for this challenge');
       return;
     }
@@ -96,18 +130,21 @@ const ChallengeProofSubmission = () => {
 
       const formData = new FormData();
       
+      if (!media) {
+        throw new Error('No media selected');
+      }
       const newImageUri = Platform.OS === 'ios' ? media.uri.replace('file://', '') : media.uri;
       
       formData.append('proofData', {
         uri: newImageUri,
-        type: mime.getType(newImageUri),
-        name: newImageUri.split('/').pop()
-      });
+        type: mime.getType(newImageUri) || 'image/jpeg',
+        name: newImageUri.split('/').pop() || 'proof.jpg'
+      } as any);
       
-      formData.append('challengeId', challengeId);
+      formData.append('challengeId', String(challengeId));
       formData.append('submissionDate', new Date().toISOString());
 
-      const response = await fetch('http://192.168.225.177:3000/Challenges/submit-proof', {
+      const response = await fetch('http://192.168.29.104:3000/Challenges/submit-proof', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -120,8 +157,7 @@ const ChallengeProofSubmission = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      setIsSubmitting(!isSubmitting); // Toggle to trigger status refresh
+      setIsSubmitting(!isSubmitting);
       Alert.alert('Success', 'Proof submitted successfully!');
       setMedia(null);
     } catch (error) {
@@ -132,7 +168,154 @@ const ChallengeProofSubmission = () => {
     }
   };
 
+  const renderWinUI = () => {
+    return (
+      <View style={styles.resultContainer}>
+        <View style={styles.trophyContainer}>
+          <Ionicons name="trophy" size={80} color="#FFD700" />
+          <View style={styles.confettiLeft} />
+          <View style={styles.confettiRight} />
+        </View>
+        <Text style={styles.resultTitle}>Challenge Won!</Text>
+        <Text style={styles.resultSubtitle}>You&apos;ve successfully completed the challenge!</Text>
+        
+        <View style={styles.rewardContainer}>
+          <Text style={styles.rewardTitle}>Your Rewards:</Text>
+          <View style={styles.rewardItem}>
+            <Ionicons name="star" size={24} color="#FFD700" />
+            <Text style={styles.rewardText}>{(challenge?.RewardPoints ?? 50)} Points Added</Text>
+          </View>
+          {challenge && challenge.BadgeReward && (
+            <View style={styles.rewardItem}>
+              <Ionicons name="ribbon" size={24} color="#FFD700" />
+              <Text style={styles.rewardText}>New Badge Unlocked</Text>
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity 
+          style={styles.celebrateButton}
+          onPress={() => router.push('/(tabs)/Challenges')}
+        >
+          <Text style={styles.celebrateButtonText}>Continue</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderLoseUI = () => {
+    return (
+      <View style={styles.resultContainer}>
+        <View style={styles.sadFaceContainer}>
+          <Ionicons name="sad" size={80} color="#FF5722" />
+        </View>
+        <Text style={styles.resultTitle}>Challenge Lost</Text>
+        <Text style={styles.resultSubtitle}>Better luck next time!</Text>
+        
+        <View style={styles.feedbackContainer}>
+          <Text style={styles.feedbackTitle}>What you can do:</Text>
+          <View style={styles.feedbackItem}>
+            <Ionicons name="arrow-forward" size={16} color="#bbb" />
+            <Text style={styles.feedbackText}>Try again with a new challenge</Text>
+          </View>
+          <View style={styles.feedbackItem}>
+            <Ionicons name="arrow-forward" size={16} color="#bbb" />
+            <Text style={styles.feedbackText}>Improve your performance and try again</Text>
+          </View>
+          <View style={styles.feedbackItem}>
+            <Ionicons name="arrow-forward" size={16} color="#bbb" />
+            <Text style={styles.feedbackText}>Check out tips to succeed next time</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.tryAgainButton}
+          onPress={() => router.push('/(tabs)/Challenges')}
+        >
+          <Text style={styles.tryAgainButtonText}>Find New Challenges</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderProofSubmission = () => {
+    if (!challenge || challenge.Challenge_Type !== 'Proof') {
+      return (
+        <View style={styles.autoTrackContainer}>
+          <Ionicons name="sync-circle" size={60} color="#4CAF50" />
+          <Text style={styles.autoTrackTitle}>Automatic Tracking</Text>
+          <Text style={styles.autoTrackText}>
+            This challenge is automatically tracked by our system. No proof submission is required.
+            Your progress will be updated based on your activity data.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <>
+        <Text style={styles.sectionTitle}>Submit Your Proof</Text>
+        <Text style={styles.instructions}>
+          Please capture {(challenge && challenge.ProofType ? challenge.ProofType.toLowerCase() : 'appropriate')} evidence that you completed this challenge.
+        </Text>
+
+        {media ? (
+          <View style={styles.mediaContainer}>
+            {challenge && challenge.ProofType === 'Image' ? (
+              <Image source={{ uri: media.uri }} style={styles.media} />
+            ) : (
+              <View style={styles.videoContainer}>
+                <Ionicons name="videocam" size={60} color="#bbb" />
+                <Text style={styles.videoText}>Video captured</Text>
+              </View>
+            )}
+            <TouchableOpacity 
+              style={styles.changeMediaButton}
+              onPress={() => setMedia(null)}
+            >
+              <Text style={styles.changeMediaText}>Remove Media</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity 
+            style={styles.captureButton} 
+            onPress={captureMedia}
+          >
+            <Ionicons 
+              name={challenge?.ProofType === 'Image' ? "camera" : "videocam"} 
+              size={32} 
+              color="#4CAF50" 
+            />
+            <Text style={styles.captureButtonText}>
+              {challenge?.ProofType === 'Image' ? 'Take Photo' : 'Record Video'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {media && (
+          <TouchableOpacity 
+            style={[styles.submitButton, loading && { opacity: 0.7 }]}
+            onPress={submitProof}
+            disabled={loading}
+          >
+            {loading ? (
+              <Text style={styles.submitButtonText}>Submitting...</Text>
+            ) : (
+              <Text style={styles.submitButtonText}>Submit Proof</Text>
+            )}
+          </TouchableOpacity>
+        )}
+      </>
+    );
+  };
+
   const renderStatusMessage = () => {
+    // First check if challenge is completed (Won or Lose)
+    if (challengeResult) {
+      return challengeResult === 'Won' ? renderWinUI() : renderLoseUI();
+    }
+
+    // Then check proof status
     switch (proofStatus) {
       case 'Pending':
         return (
@@ -164,77 +347,6 @@ const ChallengeProofSubmission = () => {
       default:
         return renderProofSubmission();
     }
-  };
-
-  const renderProofSubmission = () => {
-    if (challenge.Challenge_Type !== 'Proof') {
-      return (
-        <View style={styles.autoTrackContainer}>
-          <Ionicons name="sync-circle" size={60} color="#4CAF50" />
-          <Text style={styles.autoTrackTitle}>Automatic Tracking</Text>
-          <Text style={styles.autoTrackText}>
-            This challenge is automatically tracked by our system. No proof submission is required.
-            Your progress will be updated based on your activity data.
-          </Text>
-        </View>
-      );
-    }
-
-    return (
-      <>
-        <Text style={styles.sectionTitle}>Submit Your Proof</Text>
-        <Text style={styles.instructions}>
-          Please capture {challenge.ProofType.toLowerCase()} evidence that you completed this challenge.
-        </Text>
-
-        {media ? (
-          <View style={styles.mediaContainer}>
-            {challenge.ProofType === 'Image' ? (
-              <Image source={{ uri: media.uri }} style={styles.media} />
-            ) : (
-              <View style={styles.videoContainer}>
-                <Ionicons name="videocam" size={60} color="#bbb" />
-                <Text style={styles.videoText}>Video captured</Text>
-              </View>
-            )}
-            <TouchableOpacity 
-              style={styles.changeMediaButton}
-              onPress={() => setMedia(null)}
-            >
-              <Text style={styles.changeMediaText}>Remove Media</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity 
-            style={styles.captureButton} 
-            onPress={captureMedia}
-          >
-            <Ionicons 
-              name={challenge.ProofType === 'Image' ? "camera" : "videocam"} 
-              size={32} 
-              color="#4CAF50" 
-            />
-            <Text style={styles.captureButtonText}>
-              {challenge.ProofType === 'Image' ? 'Take Photo' : 'Record Video'}
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {media && (
-          <TouchableOpacity 
-            style={[styles.submitButton, loading && { opacity: 0.7 }]}
-            onPress={submitProof}
-            disabled={loading}
-          >
-            {loading ? (
-              <Text style={styles.submitButtonText}>Submitting...</Text>
-            ) : (
-              <Text style={styles.submitButtonText}>Submit Proof</Text>
-            )}
-          </TouchableOpacity>
-        )}
-      </>
-    );
   };
 
   if (!challenge) {
@@ -302,6 +414,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: '#fff',
+    textAlign: 'center',
+    marginTop: 20,
   },
   header: {
     flexDirection: 'row',
@@ -345,6 +459,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 12,
+    textAlign: 'center',
   },
   instructions: {
     fontSize: 14,
@@ -471,6 +586,133 @@ const styles = StyleSheet.create({
     color: '#bbb',
     marginTop: 8,
     textAlign: 'center',
+  },
+  // Win/Lose UI styles
+  resultContainer: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+    width: '100%',
+  },
+  trophyContainer: {
+    position: 'relative',
+    marginBottom: 20,
+  },
+  sadFaceContainer: {
+    marginBottom: 20,
+  },
+  resultTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  resultSubtitle: {
+    fontSize: 16,
+    color: '#bbb',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  rewardContainer: {
+    width: '100%',
+    marginBottom: 24,
+  },
+  rewardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  rewardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    padding: 12,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 8,
+  },
+  rewardText: {
+    fontSize: 16,
+    color: '#fff',
+    marginLeft: 12,
+  },
+  feedbackContainer: {
+    width: '100%',
+    marginBottom: 24,
+  },
+  feedbackTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  feedbackItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    padding: 12,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 8,
+  },
+  feedbackText: {
+    fontSize: 16,
+    color: '#bbb',
+    marginLeft: 12,
+  },
+  celebrateButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  celebrateButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  tryAgainButton: {
+    backgroundColor: '#FF5722',
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tryAgainButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  confettiLeft: {
+    position: 'absolute',
+    left: -30,
+    top: -20,
+    width: 20,
+    height: 20,
+    backgroundColor: '#FFD700',
+    transform: [{ rotate: '45deg' }],
+  },
+  confettiRight: {
+    position: 'absolute',
+    right: -30,
+    top: -20,
+    width: 20,
+    height: 20,
+    backgroundColor: '#FFD700',
+    transform: [{ rotate: '45deg' }],
   },
 });
 

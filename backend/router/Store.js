@@ -11,9 +11,9 @@ router.get('/', isloggedin, async (req, res) => {
     const user = await Usermongo.findById(req.user.id);
     // const FitCoins = user.FitCoins;
     const store = await Storemongo.find();
-    const FitCoinsValue = 3.33
+    const FitCoinsValue = 0.33
 
-    res.json({ FitCoins: 653, store, FitCoinsValue });
+    res.json({ FitCoins: 200, store, FitCoinsValue });
 });
 
 router.get('/Cart', isloggedin, async (req, res) => {
@@ -50,7 +50,6 @@ router.get('/Cart', isloggedin, async (req, res) => {
             }))
         };
 
-        console.log(responseData.products);
 
         res.status(200).json({ cart: responseData });
     } catch (error) {

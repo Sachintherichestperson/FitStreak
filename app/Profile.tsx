@@ -1,6 +1,5 @@
 import { Feather, FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -45,14 +44,45 @@ interface BuddyInfo {
 }
 
 const FitStreakProfile = () => {
+  const badgeImages: { [key: string]: any } = {
+    Tiger: require('./../assets/images/Tiger.png'),
+    Panther: require('./../assets/images/Panther.png'),
+    Dragon: require('./../assets/images/Dragon.png'),
+    Elephant: require('./../assets/images/Elephant.png'),
+    Goat: require('./../assets/images/Goat.png'),
+    Lion: require('./../assets/images/Lion.png'),
+    Bison: require('./../assets/images/Bison.png'),
+    Rabbit: require('./../assets/images/Rabbit.png'),
+    Phoenix: require('./../assets/images/Phoniex.png'),
+    Griffin: require('./../assets/images/Griffen.png'),
+    Beast: require('./../assets/images/Beast.png'),
+    Fox: require('./../assets/images/Fox.png'),
+    Ant: require('./../assets/images/Ant.png'),
+    Wolf: require('./../assets/images/Wolf.png'),
+    Fish: require('./../assets/images/fish.png'),
+    Cat: require('./../assets/images/Cat.png'),
+    Rhino: require('./../assets/images/Rhino.png'),
+    Frog: require('./../assets/images/Frog.png'),
+    Owl: require('./../assets/images/owl.png'),
+    Squirrel: require('./../assets/images/Squirrel.png'),
+    Horse: require('./../assets/images/Horse.png'),
+    Dog: require('./../assets/images/Dog.png'),
+    Shark: require('./../assets/images/Shark.png'),
+    Falcon: require('./../assets/images/Falcon.png'),
+    Bettle: require('./../assets/images/Bettle.png'),
+    Bear: require('./../assets/images/Bear.png'),
+    Crown: require('./../assets/images/Crown.png'),
+  };
+  
   const router = useRouter();
   const [editMode, setEditMode] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [name, setName] = useState<string>('');
   const [PostCount, setPostCount] = useState(0);
   const [level, setLevel] = useState('Beast Level');
+  const [currentBadge, setCurrentBadge] = useState('Beast');
   const [streak, setStreak] = useState(0);
-  const [fitCoins, setFitCoins] = useState(6200);
+  const [fitCoins, setFitCoins] = useState(0);
   const [badges, setBadges] = useState(0);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [walletAction, setWalletAction] = useState('');
@@ -60,18 +90,14 @@ const FitStreakProfile = () => {
   const [addAmount, setAddAmount] = useState('');
   const [buddySearch, setBuddySearch] = useState(''); 
   const [showBuddyModal, setShowBuddyModal] = useState(false);
-  const [buddy, setBuddy] = useState<BuddyInfo>({
-    name: null,
-    id: null,
-    streak: 0
-  });
+  const [buddy, setBuddy] = useState<BuddyInfo | null>(null);
   const [showPostModal, setShowPostModal] = useState(false);
   const [postContent, setPostContent] = useState('');
   const [postImage, setPostImage] = useState<string | null>(null);
   const [isPosting, setIsPosting] = useState(false);
   const [anonymousPosts, setAnonymousPosts] = useState<AnonymousPost[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-  
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
   const handleBack = () => {
     router.back();
@@ -80,7 +106,7 @@ const FitStreakProfile = () => {
   const BackendData = async () => {
     const token = await AsyncStorage.getItem('Token');
     try {
-      const response = await fetch('http://192.168.225.177:3000/Profile/',{
+      const response = await fetch('http://192.168.29.104:3000/Profile/',{
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -90,45 +116,49 @@ const FitStreakProfile = () => {
       const data = await response.json();
 
       setName(data.user.username || '');
-      setUserId(data.user._id || '')
+      setUserId(data.user._id || '');
       setLevel(data.Level);
+      setCurrentBadge(data.Badge);
       setPostCount(data.user.TotalPost || 0);
       setStreak(data.user.Streak?.Scan || 0);
       setBadges(data.user.Badges.length || 0);
-      setFitCoins(data.user.FitCoins || 0);
+      setFitCoins(data.Coins || 0);
       
-      if (data.user.Buddy) {
+      if (data.user.Buddy?.BuddyId) {
         setBuddy({
-          name: data.Buddy.username,
-          id: data.Buddy._id,
-          streak: data.Buddy.Streak.Scan || 0
+          name: data.Buddy?.username,
+          id: data.Buddy?._id,
+          streak: data.Buddy?.Streak?.Scan || 0,
+          avatar: data.Buddy?.avatar
         });
+      } else {
+        setBuddy(null);
       }
 
       const postsWithTimeAgo = data.posts.map((post: any) => {
-            const createdAt = new Date(post.CreatedAt);
-            const now = new Date();
-            const diffMs = now.getTime() - createdAt.getTime();
-            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const createdAt = new Date(post.CreatedAt);
+        const now = new Date();
+        const diffMs = now.getTime() - createdAt.getTime();
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-            let timeAgo = '';
-            if (diffHours < 24) {
-              timeAgo = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-            } else {
-              timeAgo = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-            }
+        let timeAgo = '';
+        if (diffHours < 24) {
+          timeAgo = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+        } else {
+          timeAgo = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+        }
 
-            return { 
-              ...post, 
-              timeAgo,
-              isLiked: false,
-              Fire: post.Fire || 0,
-              Biceps: post.Biceps || 0
-            };
-          });
+        return { 
+          ...post, 
+          timeAgo,
+          isLiked: false,
+          Fire: post.Fire?.length || 0,
+          Biceps: post.Biceps.length || 0
+        };
+      });
 
-          setAnonymousPosts(postsWithTimeAgo);
+      setAnonymousPosts(postsWithTimeAgo);
     } catch (error) {
       console.error('Error fetching profile data:', error);
     } finally {
@@ -141,44 +171,106 @@ const FitStreakProfile = () => {
   }, []);
 
   const confirmBuddyChange = async (specialCode: string) => {
-  try {
-    const token = await AsyncStorage.getItem('Token');
-    const response = await fetch('http://192.168.225.177:3000/Profile/update-buddy', {
-      method: 'POST',
-      headers: {
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      const response = await fetch('http://192.168.29.104:3000/Profile/update-buddy', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        body: JSON.stringify({
+          buddyId: specialCode
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setBuddy({
+          name: data.name,
+          id: data.id,
+          streak: 1,
+          avatar: data.avatar,
+        });
+        setShowBuddyModal(false);
+        setBuddySearch('');
+        BackendData(); // Refresh data
+      } else {
+        Alert.alert('Error', 'Invalid Code or Failed to update buddy');
+      }
+    } catch (error) {
+      console.error('Error updating buddy:', error);
+      Alert.alert('Error', 'Could not connect to server');
+    }
+  };
+
+  const removeBuddy = async () => {
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      const response = await fetch('http://192.168.29.104:3000/Profile/remove-buddy', {
+        method: 'POST',
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-      body: JSON.stringify({
-        buddyId: specialCode  // send special code entered
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json(); // expect { name, id, avatar }
-      setBuddy({
-        name: data.name,
-        id: data.id,
-        streak: 1,
-        avatar: data.avatar,
       });
-      setShowBuddyModal(false);
-      setBuddySearch('');
-    } else {
-      Alert.alert('Error', 'Invalid Code or Failed to update buddy');
+
+      if (response.ok) {
+        setBuddy(null);
+        Alert.alert('Success', 'Buddy removed successfully');
+        BackendData(); // Refresh data
+      } else {
+        Alert.alert('Error', 'Failed to remove buddy');
+      }
+    } catch (error) {
+      console.error('Error removing buddy:', error);
+      Alert.alert('Error', 'Could not connect to server');
     }
-  } catch (error) {
-    console.error('Error updating buddy:', error);
-    Alert.alert('Error', 'Could not connect to server');
-  }
-};
+  };
+
+  const handleSaveProfile = async () => {
+    if (!name.trim()) {
+      Alert.alert('Error', 'Username cannot be empty');
+      return;
+    }
+
+    setIsUpdatingProfile(true);
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      
+      const response = await fetch('http://192.168.29.104:3000/Profile/Profile-Edit', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: name })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setEditMode(false);
+        Alert.alert('Success', 'Profile updated successfully');
+        BackendData(); // Refresh profile data
+      } else {
+        throw new Error(data.message || 'Profile update failed');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', error.message || 'Failed to update profile');
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
 
   const handleEditProfile = () => {
     setEditMode(!editMode);
-  };
-
-  const handleSaveProfile = () => {
-    setEditMode(false);
   };
 
   const handleWalletAction = (action: string) => {
@@ -252,7 +344,7 @@ const FitStreakProfile = () => {
     setIsPosting(true);
     
     try {
-      const response = await fetch('http://192.168.225.177:3000/Profile/Create-Post', {
+      const response = await fetch('http://192.168.29.104:3000/Profile/Create-Post', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -278,6 +370,7 @@ const FitStreakProfile = () => {
       setPostImage(null);
       setShowPostModal(false);
       Alert.alert('Success', 'Your anonymous post has been shared!');
+      BackendData(); // Refresh posts
     } catch (error) {
       console.error('Error creating post:', error);
       Alert.alert('Error', 'Failed to create post');
@@ -298,13 +391,6 @@ const FitStreakProfile = () => {
       return post;
     }));
   };
-
-  const availableBuddies = [
-    { id: '1', name: 'Amit Patel', avatar: 'https://randomuser.me/api/portraits/men/22.jpg' },
-    { id: '2', name: 'Priya Singh', avatar: 'https://randomuser.me/api/portraits/women/44.jpg' },
-    { id: '3', name: 'Vikram Joshi', avatar: 'https://randomuser.me/api/portraits/men/33.jpg' },
-    { id: '4', name: 'Neha Gupta', avatar: 'https://randomuser.me/api/portraits/women/55.jpg' },
-  ];
 
   const settingsItems = [
     { icon: 'user', name: 'Account Settings' },
@@ -332,7 +418,7 @@ const FitStreakProfile = () => {
           <View style={styles.postAction}>
             <Text>🔥</Text>
             <Text style={styles.postActionText}>
-              {item.Fire}
+              {item.Fire.length}
             </Text>
           </View>
         </View>
@@ -359,12 +445,9 @@ const FitStreakProfile = () => {
           <View style={styles.profileMain}>
             <View style={styles.avatarContainer}>
               <Image
-                source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }}
-                style={styles.userAvatar}
-              />
-              <TouchableOpacity style={styles.editAvatar}>
-                <Feather name="camera" size={12} color="#121212" />
-              </TouchableOpacity>
+                  source={badgeImages[currentBadge]}
+                  style={[styles.badgeImage, { tintColor: '#00C896' }]} // Red tint
+                />
             </View>
             
             {editMode ? (
@@ -380,31 +463,28 @@ const FitStreakProfile = () => {
             
             <View style={styles.userLevel}>
               <FontAwesome name="trophy" size={14} color="#00C896" />
-              <Text style={styles.levelText}>
-                {editMode ? (
-                  <TextInput
-                    style={styles.editLevelInput}
-                    value={level}
-                    onChangeText={setLevel}
-                  />
-                ) : (
-                  level
-                )}
-              </Text>
+              <Text style={styles.levelText}>{level}</Text>
             </View>
             
             <TouchableOpacity
               style={styles.editProfileButton}
               onPress={editMode ? handleSaveProfile : handleEditProfile}
+              disabled={isUpdatingProfile}
             >
-              <FontAwesome
-                name={editMode ? 'check' : 'pencil'}
-                size={14}
-                color="#F5F5F5"
-              />
-              <Text style={styles.editProfileText}>
-                {editMode ? 'Save Profile' : 'Edit Profile'}
-              </Text>
+              {isUpdatingProfile ? (
+                <ActivityIndicator size="small" color="#F5F5F5" />
+              ) : (
+                <>
+                  <FontAwesome
+                    name={editMode ? 'check' : 'pencil'}
+                    size={14}
+                    color="#F5F5F5"
+                  />
+                  <Text style={styles.editProfileText}>
+                    {editMode ? 'Save Profile' : 'Edit Profile'}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -472,71 +552,86 @@ const FitStreakProfile = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Wallet</Text>
-            <TouchableOpacity>
+            {/* <TouchableOpacity>
               <Text style={styles.viewAll}>History</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
           
           <View style={styles.card}>
-            <Text style={styles.walletBalance}>{fitCoins.toLocaleString()} FC</Text>
+            <Text style={styles.walletBalance}>{fitCoins.toLocaleString()} FitCoins </Text>
             <View style={styles.walletActions}>
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={[styles.walletButton, styles.primaryButton]}
                 onPress={() => handleWalletAction('convert')}
               >
                 <FontAwesome name="refresh" size={16} color="#121212" />       
                 <Text style={styles.buttonText}>Convert</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </TouchableOpacity> */}
+              {/* <TouchableOpacity
                 style={[styles.walletButton, styles.secondaryButton]}
                 onPress={() => handleWalletAction('add')}
               >
                 <FontAwesome name="plus" size={16} color="#F5F5F5" />
                 <Text style={[styles.buttonText, { color: '#F5F5F5' }]}>Add</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
           </View>
         </View>
 
         {/* Buddy Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Workout Buddy</Text>
-            <TouchableOpacity onPress={handleChangeBuddy}>
-              <Text style={styles.viewAll}>
-                {buddy.name ? 'Change' : 'Add'}
-              </Text>
-            </TouchableOpacity>
+        {buddy && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Workout Buddy</Text>
+              <View style={styles.buddyActionButtons}>
+                <TouchableOpacity onPress={handleChangeBuddy}>
+                  <Text style={styles.viewAll}>Change</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={removeBuddy}>
+                  <Text style={styles.removeBuddyText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.cardTitle}>
+                  <FontAwesome name="users" size={16} color="#00C896" />
+                  <Text style={styles.cardTitleText}>Linked Buddy</Text>
+                </View>
+                <View style={styles.cardStatus}>
+                  <Text style={styles.cardStatusText}>Active</Text>
+                </View>
+              </View>
+              
+              <View style={styles.buddyInfo}>
+                <Image
+                  source={{ uri: buddy.avatar || 'https://randomuser.me/api/portraits/men/42.jpg' }}
+                  style={styles.buddyAvatar}
+                />
+                <View>
+                  <Text style={styles.buddyName}>{buddy.name}</Text>
+                  <View style={styles.buddyStreak}>
+                    <FontAwesome name="fire" size={13} color="#0084FF" />
+                    <Text style={styles.buddyStreakText}>{buddy.streak} day streak together</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
           </View>
-          
-          <View style={styles.card}>
-            {buddy.name ? (
-              <>
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardTitle}>
-                    <FontAwesome name="users" size={16} color="#00C896" />
-                    <Text style={styles.cardTitleText}>Linked Buddy</Text>
-                  </View>
-                  <View style={styles.cardStatus}>
-                    <Text style={styles.cardStatusText}>Active</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.buddyInfo}>
-                  <Image
-                    source={{ uri: 'https://randomuser.me/api/portraits/men/42.jpg' }}
-                    style={styles.buddyAvatar}
-                  />
-                  <View>
-                    <Text style={styles.buddyName}>{buddy.name}</Text>
-                    <View style={styles.buddyStreak}>
-                      <FontAwesome name="fire" size={13} color="#0084FF" />
-                      <Text style={styles.buddyStreakText}>{buddy.streak} day streak together</Text>
-                    </View>
-                  </View>
-                </View>
-              </>
-            ) : (
+        )}
+
+        {/* Add Buddy Section if no buddy exists */}
+        {!buddy && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Workout Buddy</Text>
+              <TouchableOpacity onPress={handleChangeBuddy}>
+                <Text style={styles.viewAll}>Add</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.card}>
               <View style={styles.noBuddyContainer}>
                 <MaterialCommunityIcons name="account-question" size={40} color="#888" />
                 <Text style={styles.noBuddyText}>No workout buddy linked</Text>
@@ -547,9 +642,9 @@ const FitStreakProfile = () => {
                   <Text style={styles.addBuddyButtonText}>Add Workout Buddy</Text>
                 </TouchableOpacity>
               </View>
-            )}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Settings Section */}
         <View style={styles.section}>
@@ -718,42 +813,42 @@ const FitStreakProfile = () => {
 
       {/* Buddy Modal */}
       <Modal
-  visible={showBuddyModal}
-  animationType="slide"
-  transparent={true}
-  onRequestClose={() => setShowBuddyModal(false)}
->
-  <View style={styles.modalOverlay}>
-    <View style={styles.modalContent}>
-      <Text style={styles.modalTitle}>Enter Buddy Code</Text>
-      <Text style={styles.modalText}>
-        Ask your friend for their code and enter it below to connect as buddies.
-      </Text>
-
-      <TextInput
-        style={styles.buddySearchInput}
-        placeholder="Enter special buddy code..."
-        placeholderTextColor="#888"
-        value={buddySearch}
-        onChangeText={setBuddySearch}
-      />
-
-      <TouchableOpacity
-        style={[styles.BuddyModalButton, { width: '100%' }]}
-        onPress={() => confirmBuddyChange(buddySearch)}
+        visible={showBuddyModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowBuddyModal(false)}
       >
-        <Text style={styles.confirmButtonText}>Confirm</Text>
-      </TouchableOpacity>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Enter Buddy Code</Text>
+            <Text style={styles.modalText}>
+              Ask your friend for their code and enter it below to connect as buddies.
+            </Text>
 
-      <TouchableOpacity
-        style={[styles.modalCancelButton,  { width: '100%' }]}
-        onPress={() => setShowBuddyModal(false)}
-      >
-        <Text style={styles.cancelButtonText}>Cancel</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
+            <TextInput
+              style={styles.buddySearchInput}
+              placeholder="Enter special buddy code..."
+              placeholderTextColor="#888"
+              value={buddySearch}
+              onChangeText={setBuddySearch}
+            />
+
+            <TouchableOpacity
+              style={[styles.BuddyModalButton, { width: '100%' }]}
+              onPress={() => confirmBuddyChange(buddySearch)}
+            >
+              <Text style={styles.confirmButtonText}>Confirm</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalCancelButton,  { width: '100%' }]}
+              onPress={() => setShowBuddyModal(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -797,25 +892,13 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     position: 'relative',
   },
-  userAvatar: {
+  badgeImage: {
     width: 100,
     height: 100,
+    resizeMode: 'cover',
     borderRadius: 50,
     borderWidth: 3,
-    borderColor: '#00C896',
-  },
-  editAvatar: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    backgroundColor: '#00C896',
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#121212',
+    borderColor: '#06876788',
   },
   userName: {
     fontSize: 24,
@@ -841,11 +924,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   levelText: {
-    color: '#00C896',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  editLevelInput: {
     color: '#00C896',
     fontSize: 14,
     fontWeight: '600',
@@ -908,6 +986,14 @@ const styles = StyleSheet.create({
   viewAll: {
     fontSize: 14,
     color: '#888',
+  },
+  removeBuddyText: {
+    fontSize: 14,
+    color: '#FF5252',
+    marginLeft: 15,
+  },
+  buddyActionButtons: {
+    flexDirection: 'row',
   },
   createPostButton: {
     flexDirection: 'row',

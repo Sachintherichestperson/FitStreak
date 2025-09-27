@@ -13,16 +13,19 @@ router.get('/', isloggedin, async (req, res) => {
         .populate('ActiveChallenge.challengeId')
         .populate('ChallengesCompleted.challengeId');
     
-    // Get all dates the user has worked out (scanned)
     const loggedDates = user.WorkoutLog
         .filter(log => log.scanned)
-        .map(log => log.date.toISOString().split('T')[0]); // Get YYYY-MM-DD format
+        .map(log => log.date.toISOString().split('T')[0]);
+
+    const FitCoins = user.FitCoins || 0
+    const Status = user.CurrentBadge;
     
-        console.log(loggedDates)
     res.json({ 
         user,
         streak: user.Streak.Scan,
-        loggedDates 
+        loggedDates,
+        FitCoins,
+        Status
     });
 });
 
@@ -34,7 +37,6 @@ router.post('/Scan', isloggedin, async (req, res) => {
   }
 
   try {
-    // Extract gymId from scanned QR
     let gymId;
     try {
       const url = new URL(qrData);
@@ -44,7 +46,6 @@ router.post('/Scan', isloggedin, async (req, res) => {
       return res.status(400).json({ error: 'Invalid QR format' });
     }
 
-    // Fetch user and populate challenges
     const user = await Usermongo.findById(req.user._id)
       .populate('ActiveChallenge.challengeId');
 
@@ -52,7 +53,6 @@ router.post('/Scan', isloggedin, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Validate gym QR
     if (gymId !== user.Unicode) {
       return res.status(400).json({ error: 'QR code does not match your assigned gym ❌' });
     }
@@ -60,7 +60,6 @@ router.post('/Scan', isloggedin, async (req, res) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Check if already scanned today using CurrentScan
     const currentScan = user.Streak.CurrentScan;
     if (currentScan) {
       const last = new Date(currentScan);
@@ -74,12 +73,10 @@ router.post('/Scan', isloggedin, async (req, res) => {
       }
     }
 
-    // ✅ Update Streak info
     user.Streak.Scan = (user.Streak.Scan || 0) + 1;
-    user.Streak.lastScan = user.Streak.CurrentScan || null; // move current to last
-    user.Streak.CurrentScan = now; // update to now
+    user.Streak.lastScan = user.Streak.CurrentScan || null;
+    user.Streak.CurrentScan = now;
 
-    // ✅ Update progress for Non-Proof challenges
     if (user.ActiveChallenge && user.ActiveChallenge.length > 0) {
       for (let entry of user.ActiveChallenge) {
         const challenge = entry.challengeId;
@@ -93,7 +90,6 @@ router.post('/Scan', isloggedin, async (req, res) => {
       }
     }
 
-    // ✅ Log workout if not already logged today
     const alreadyLogged = user.WorkoutLog.some(log => {
       const logDate = new Date(log.date);
       return (
@@ -104,10 +100,11 @@ router.post('/Scan', isloggedin, async (req, res) => {
     });
 
     if (!alreadyLogged) {
-      user.WorkoutLog.push({ date: today, scanned: true });
+      user.WorkoutLog.push({ date: now, scanned: true });
     }
 
-    // ✅ Save user
+    user.FitCoins += 5;
+    user.Points += 10;
     await user.save();
 
     return res.status(200).json({ message: 'Streak maintained, progress updated, and workout logged 🎉' });
@@ -162,6 +159,18 @@ router.get('/Active-Challenges', isloggedin, async (req, res) => {
         console.error("Error fetching challenges:", err);
         res.status(500).json({ error: 'Failed to fetch challenges' });
     }
+});
+
+router.post("/save-push-token", isloggedin, async (req, res) => {
+  const { expoPushToken } = req.body;
+  console.log(expoPushToken);
+});
+
+router.get("/Gym-Location", isloggedin, async (req, res) => {
+  const user = await Usermongo.findById(req.user.id);
+  const Location = user.Location;
+
+  res.json(Location);
 });
 
 module.exports = router;

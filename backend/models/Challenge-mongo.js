@@ -21,6 +21,14 @@ const ChallengeSchema = new mongoose.Schema({
     CreatedAt: { type: Date, default: Date.now },
     Status: { type: String, enum: ['Active', 'Completed'], default: 'Active' },
     By: { type: String, enum: ['FitStreak', 'Gym'], required: true },
+    ChallengeWinners: [{
+        UserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        WonDate: Date,
+    }],
+    ChallengeLosers: [{
+        UserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        LoseDate: Date,
+    }],
 });
 
 module.exports = mongoose.model('Challenges', ChallengeSchema);

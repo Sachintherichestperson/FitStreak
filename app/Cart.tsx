@@ -23,7 +23,7 @@ interface Product {
     price: number;
     fitcoinPrice: number;
     image: string;
-    MaxDiscount: number; // Added maxDiscount field
+    MaxDiscount: number;
 }
 
 interface CartItem {
@@ -43,7 +43,6 @@ interface CartResponse {
 const Cart = () => {
     const router = useRouter();
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
-    console.log(cartItems);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [fitcoins, setFitcoins] = useState(0);
@@ -57,7 +56,7 @@ const Cart = () => {
             const token = await AsyncStorage.getItem('Token');
 
             // Fetch cart items
-            const cartResponse = await fetch('http://192.168.225.177:3000/Store/Cart', {
+            const cartResponse = await fetch('http://192.168.29.104:3000/Store/Cart', {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -73,7 +72,7 @@ const Cart = () => {
             setCartItems(cartData.cart?.products || []);
 
             // Fetch user's fitcoins balance
-            const userResponse = await fetch('http://192.168.225.177:3000/Store/', {
+            const userResponse = await fetch('http://192.168.29.104:3000/Store/', {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -102,7 +101,7 @@ const Cart = () => {
 
         try {
             const token = await AsyncStorage.getItem('Token');
-            const response = await fetch(`http://192.168.225.177:3000/Store/Cart/${itemId}`, {
+            const response = await fetch(`http://192.168.29.104:3000/Store/Cart/${itemId}`, {
                 method: 'PUT',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -129,7 +128,7 @@ const Cart = () => {
     const removeItem = async (itemId: string) => {
         try {
             const token = await AsyncStorage.getItem('Token');
-            const response = await fetch(`http://192.168.225.177:3000/Store/Cart/${itemId}`, {
+            const response = await fetch(`http://192.168.29.104:3000/Store/Cart/${itemId}`, {
                 method: 'DELETE',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -162,7 +161,6 @@ const Cart = () => {
         maxFitcoins += maxFitcoinsForItem;
     });
 
-    // console.log(maxFitcoins);
     
     return maxFitcoins;
 };

@@ -7,6 +7,7 @@ const bodyParser = require('body-parser');
 
 //functions
 const Progress_func = require('./functions/Progress');
+const Streak_func = require('./functions/Streak');
 
  // Connect DB once here
 require('./config/mongo-connection');
@@ -25,6 +26,8 @@ const CommunityRoute = require('./router/Community');
 const ProfileRoute = require('./router/Profile');
 const StoreRoute = require('./router/Store');
 const HomeRoute = require('./router/Home');
+const WorkoutRoute = require('./router/Workout');
+const DietRoute = require('./router/Diet');
 const BadgesRoute = require('./router/Badges');
 
 
@@ -45,6 +48,8 @@ app.use('/Community', CommunityRoute);
 app.use('/Profile', ProfileRoute);
 app.use('/Store', StoreRoute);
 app.use('/Home', HomeRoute);
+app.use('/Diet', DietRoute);
+app.use('/Workout', WorkoutRoute);
 app.use('/Badges', BadgesRoute);
 
 
@@ -52,66 +57,123 @@ app.get('/validate-token', isloggedin, (req, res) => {
     res.status(200).json({ valid: true });
 });
 
-app.post('/Register', async (req, res) => {
-    const { username, email, password, Unicode } = req.body;
+function generateBuddyCode(username, gymName) {
+  const random = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
+  return `${username}-${random}-${gymName || 'NoGym'}`;
+}
 
-    let matchedGyms;
+async function createUniqueBuddyCode(username, gymName) {
+  let buddyCode;
+  let exists = true;
+  let attempts = 0;
+  const maxAttempts = 10;
 
-    if (Unicode) {
-    matchedGyms = await Gymmongo.findOne({ UniCode: Unicode });
-
-        // If Unicode is provided but invalid
-        if (!matchedGyms) {
-            return res.status(400).json({
-                Invalid: 'Invalid Unicode',
-                message: 'Please enter a correct Unicode',
-            });
-        }
+  while (exists && attempts < maxAttempts) {
+    buddyCode = generateBuddyCode(username, gymName);
+    const existingUser = await Usermongo.findOne({ BuddyCode: buddyCode });
+    if (!existingUser) {
+      exists = false;
     }
+    attempts++;
+  }
 
-    try {
+  if (exists) throw new Error("Could not generate unique BuddyCode");
 
+  return buddyCode;
+}
 
-    const user = new Usermongo({ 
-        username, 
-        email, 
-        password,
-        Unicode: Unicode || null,
-        Gym: matchedGyms,
+app.post('/register', async (req, res) => {
+  const { username, email, password, Unicode } = req.body;
+
+  let matchedGym = null;
+
+  if (Unicode) {
+    matchedGym = await Gymmongo.findOne({ UniCode: Unicode });
+    if (!matchedGym) {
+      return res.status(400).json({ message: 'Invalid Unicode' });
+    }
+  }
+
+  try {
+    const gymName = matchedGym ? matchedGym.name : null; // or matchedGym.GymName depending on schema
+    const buddyCode = await createUniqueBuddyCode(username, gymName);
+
+    const user = new Usermongo({
+      username,
+      email,
+      password,
+      Unicode: Unicode || null,
+      Gym: matchedGym,
+      BuddyCode: buddyCode
     });
 
-
-    if (matchedGyms) {
-        matchedGyms.Members.push({
-            UserId: user.id,
-            JoinDate: new Date(),
-            MembershipStatus: 'Active'
-        });
-        await matchedGyms.save();
+    if (matchedGym) {
+      matchedGym.Members.push({
+        UserId: user._id,
+        JoinDate: new Date(),
+        MembershipStatus: 'Active'
+      });
+      await matchedGym.save();
     }
-    
+
     await user.save();
 
-    const token = jwt.sign({ email, id: user._id }, 'ewyfif8787347ry378', {
-        expiresIn: '7d',
+    const token = jwt.sign(
+      { id: user._id },
+      "Jwtsecret839dhwieuh",
+      { expiresIn: '30d' }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      "8934735345uhduydvc89",
+      { expiresIn: '7d' }
+    );
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: false, // set to true if using HTTPS
+      sameSite: 'Strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    res.cookie('username', token, {
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        httpOnly: true,
-        secure: false,
+    res.status(201).json({
+      message: 'Registered successfully',
+      token,
+      refreshToken,
+      buddyCode: user.BuddyCode
     });
 
-    res.status(201).json({ message: 'User registered successfully', token });
-    } catch (error) {
-        console.log(error);
-        res.status(400).json({ error: 'Error registering user' });
-    }
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: 'Registration failed' });
+  }
 });
+
+
+app.post('/refresh', (req, res) => {
+  const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'Refresh token missing' });
+  }
+
+  jwt.verify(refreshToken, "8934735345uhduydvc89", (err, decoded) => {
+    if (err) return res.status(401).json({ message: 'Invalid refresh token' });
+
+    const newAccessToken = jwt.sign(
+      { id: decoded.id },
+      "Jwtsecret839dhwieuh",
+      { expiresIn: '30d' } // short expiry for access token
+    );
+
+    res.json({ token: newAccessToken });
+  });
+});
+
 
 app.post('/Login', async (req, res) => {
     const { email, password } = req.body;
-    console.log('Login attempt with email:', email);
     const user = await Usermongo.findOne({ email });
     if (!user) {
         return res.status(401).json({ error: 'User not found' });
@@ -119,16 +181,25 @@ app.post('/Login', async (req, res) => {
     if (user.password !== password) {
         return res.status(401).json({ error: 'Invalid password' });
     }
-    const token = jwt.sign({ email, id: user._id }, 'ewyfif8787347ry378', {
-        expiresIn: '7d',
+    const token = jwt.sign({ email, id: user._id }, 'Jwtsecret839dhwieuh', {
+        expiresIn: '30d',
     });
-    res.cookie('username', token, {
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        httpOnly: true,
-        secure: false,
+
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      "8934735345uhduydvc89",
+      { expiresIn: '30d' }
+    );
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: false, // set to true if using HTTPS
+      sameSite: 'Strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
-    res.status(200).json({ message: 'User logged in successfully', token });
+
+    res.status(200).json({ message: 'User logged in successfully', token, refreshToken });
 });
 
-// Server start
+
 app.listen(3000);

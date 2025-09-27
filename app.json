@@ -7,12 +7,16 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myfirstapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
-      "supportsTablet": true,
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "bundleIdentifier": "com.anonymous.MyFirstApp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location while in use to show nearby features."
+      }
     },
     "android": {
+      "package": "com.anonymous.MyFirstApp",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -21,16 +25,15 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.POST_NOTIFICATIONS"
-      ],
-      "package": "com.anonymous.MyFirstApp"
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "plugins": [
+      "expo-audio",
       "expo-router",
       [
         "expo-splash-screen",
@@ -46,39 +49,27 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#ffffff",
-          "sounds": [
-            "./assets/notification-sound.wav"
-          ]
+          "sound": "./assets/notification_sound.wav"
         }
       ],
-      "expo-audio",
+      "expo-font",
       "expo-video",
-      [
-        "@react-native-firebase/app",
-        {
-          "androidPackage": "com.anonymous.MyFirstApp",
-          "iosBundleId": "com.anonymous.MyFirstApp"
-        }
-      ],
-      [
-        "@react-native-firebase/messaging",
-        {
-          "androidNotification": {
-            "color": "#ffffff",
-            "defaultSound": true,
-            "defaultChannelId": "high-priority"
-          }
-        }
-      ]
+      "expo-web-browser"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
       "router": {},
       "eas": {
         "projectId": "926cffe7-914c-47a2-907e-20dcf36ca2ed"
       }
-    }
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "owner": "bajajsachin"
   }
 }

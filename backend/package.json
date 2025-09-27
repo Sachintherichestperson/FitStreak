@@ -11,7 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "cloudinary": "^2.7.0",
+    "cloudinary": "^1.37.2",
     "config": "^4.0.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -23,6 +23,7 @@
     "mongo": "^0.1.0",
     "mongoose": "^8.16.4",
     "multer": "^2.0.2",
+    "multer-storage-cloudinary": "^4.0.0",
     "node-cron": "^4.2.1",
     "path": "^0.12.7",
     "qrcode-reader": "^1.0.4",

@@ -18,14 +18,18 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: async (req, file) => {
-        // Ensure only image files are uploaded
-        if (!file.mimetype.startsWith("image/")) {
-            throw new Error("Only image files are allowed!");
+        // Allow images and videos
+        const allowedTypes = ["image", "video"];
+        const fileType = file.mimetype.split("/")[0]; // 'image' or 'video'
+        if (!allowedTypes.includes(fileType)) {
+            throw new Error("Only image and video files are allowed!");
         }
+
         return {
-            folder: "uploads", // ✅ Cloudinary folder name
-            format: file.mimetype.split("/")[1], // ✅ Dynamically determine format
-            public_id: file.originalname.split(".")[0], // ✅ File name without extension
+            folder: "uploads", // Cloudinary folder
+            format: file.mimetype.split("/")[1], // jpg, png, mp4, etc
+            public_id: file.originalname.split(".")[0],
+            resource_type: fileType, // important for videos
         };
     },
 });
@@ -33,13 +37,15 @@ const storage = new CloudinaryStorage({
 const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith("image/")) {
-            cb(null, true); // ✅ Accept the file
+        const fileType = file.mimetype.split("/")[0];
+        if (fileType === "image" || fileType === "video") {
+            cb(null, true); // Accept image or video
         } else {
-            cb(new Error("Only images are allowed"), false); // ❌ Reject non-images
+            cb(new Error("Only images and videos are allowed"), false);
         }
     },
 });
+
 
 router.get('/', isloggedin, async (req, res) => {
     try {
@@ -153,7 +159,7 @@ router.post('/:id/join', isloggedin, async (req, res) => {
         }
 
         const startDate = new Date();
-        const duration = challenge.Duration || 7; // fallback to 7 if undefined
+        const duration = challenge.Duration || 7;
         const endDate = calculateEndDateSkippingSundays(startDate, duration);
 
         const user = await Usermongo.findById(userId);
@@ -173,6 +179,7 @@ router.post('/:id/join', isloggedin, async (req, res) => {
             endDate,
         });
 
+        user.Points += 7; // Award 10 points for joining a challenge
         challenge.Participants.push({ UserId: userId });
         await challenge.save();
         await user.save();
@@ -224,7 +231,7 @@ router.post('/:id/leave', isloggedin, async (req, res) => {
     }
 });
 
-router.get("/:id", isloggedin, async (req, res) => {
+router.get("/Proof/:id", isloggedin, async (req, res) => {
     const challengeId = req.params.id;
 
     try {
@@ -267,7 +274,6 @@ router.post('/submit-proof', upload.single('proofData'), isloggedin, async (req,
 
     await proof.save();
 
-    console.log(activeChallenge);
 
     res.status(200).json({ 
       success: true, 
@@ -317,6 +323,38 @@ router.get('/Proof-Status/:id', isloggedin, async (req, res) => {
     res.json({ status });
   } catch (error) {
     console.error('Error fetching proofs:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/check-challenge-result/:id', isloggedin, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const challenge = await Challengemongo.findById(req.params.id);
+
+    let Status;
+
+    const isWinner = challenge.ChallengeWinners.some(
+      entry => entry.UserId.toString() === userId
+    );
+
+    const isLoser = challenge.ChallengeLosers.some(
+      entry => entry.UserId.toString() === userId
+    );
+
+    if (isWinner) {
+      Status = 'Won';
+    } else if (isLoser) {
+      Status = 'Lose';
+    } else {
+      Status = 'Pending';
+    }
+    console.log(status);
+
+    res.json({ Status });
+  } catch (error) {
+    console.error('Error checking challenge result:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

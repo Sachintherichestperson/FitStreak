@@ -1,64 +1,50 @@
 import { FontAwesome, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import messaging from "@react-native-firebase/messaging";
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Animated,
-  Dimensions,
-  FlatList,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Animated,
+    Dimensions,
+    FlatList,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import Constants from 'expo-constants';
+
+const androidPackage = Constants.manifest2?.android?.package || Constants.expoConfig?.android?.package;
+
+console.log("Package name:", androidPackage);
+
+
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,  
+  }),
+});
 
 const { width } = Dimensions.get('window');
 
 const FitPulseApp = () => {
-  // const requestUserPermission = async () => {
-  //   const authStatus = await messaging().requestPermission();
-  //   const enabled =
-  //     authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-  //     authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-  
-  //   if (enabled) {
-  //     console.log('Authorization status:', authStatus);
-  //   }
-  // }
-
-//   useEffect(() => {
-//   const setupNotifications = async () => {
-//     try {
-//       const enabled = await requestUserPermission();
-//       console.log(enabled)
-//       if (enabled) {
-//         const token = await messaging().getToken();
-//         console.log('FCM Token:', token);
-//       } else {
-//         console.log("Permission not granted");
-//       }
-      
-//       const initialNotification = await messaging().getInitialNotification();
-//       if (initialNotification) {
-//         console.log(initialNotification);
-//       }
-//     } catch (error) {
-//       console.error('Notification setup error:', error);
-//     }
-//   };
-  
-//   setupNotifications();
-// }, []);
-
   const router = useRouter();
   const pulseAnim = new Animated.Value(1);
+  const [User, setUser] = useState<{ username?: string } | null>(null);
   const [streak, setStreak] = useState('0');
   const [challenges, setChallenges] = useState([]);
-  const [loggedDates, setLoggedDays] = useState([]);
+  const [loggedDates, setLoggedDays] = useState<string[]>([]);
+  const [Status, setStatus] = useState< string | null>(null);
+  const [FitCoins, SetFitCoins] = useState(0);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [DailyQuote, setDailyQuote] = useState({
     quote: "The only bad workout is the one that didn't happen.",
@@ -66,7 +52,7 @@ const FitPulseApp = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   Animated.loop(
     Animated.sequence([
       Animated.timing(pulseAnim, {
@@ -82,10 +68,99 @@ const FitPulseApp = () => {
     ])
   ).start();
 
+  const registerForPushNotificationsAsync = async () => {
+  try {
+    // Check if we're on a physical device
+    if (!Constants.isDevice) {
+      console.log('Must use physical device for push notifications');
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    if (finalStatus !== 'granted') {
+      console.log('Failed to get push token for push notification!');
+      return;
+    }
+    
+    // Get the Expo push token
+    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    
+    console.log('Expo push token:', token);
+    
+    // Save the token to your backend (uncomment your existing code)
+    let userToken = await AsyncStorage.getItem('Token');
+    let retries = 0;
+    const maxRetries = 10;
+    
+    while (!userToken && retries < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      userToken = await AsyncStorage.getItem('Token');
+      retries++;
+    }
+    
+    if (userToken) {
+      try {
+        await fetch('http://192.168.29.104:3000/Home/save-push-token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            expoPushToken: token,
+          }),
+        });
+        console.log('Push token saved to server successfully');
+      } catch (error) {
+        console.error('Error sending push token to server:', error);
+      }
+    }
+
+    // Android-specific configuration
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+  } catch (error) {
+    console.error('Error in registerForPushNotificationsAsync:', error);
+  }
+};
+
+  const scheduleDailyReminder = async () => {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    
+    const trigger = {
+      type: 'daily',
+      hour: 18,
+      minute: 0,
+      repeats: true,
+    };
+    
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Time for your workout! 💪",
+        body: "Don't break your streak! Log your workout today.",
+        sound: true,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+      },
+      trigger,
+    });
+  };
+
   const fetchBackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.225.177:3000/Home/',{
+      const response = await fetch('http://192.168.29.104:3000/Home/',{
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -95,7 +170,10 @@ const FitPulseApp = () => {
       const data = await response.json();
 
       setStreak(data.streak || '0');
+      setUser(data.user)
       setLoggedDays(data.loggedDates || []);
+      setStatus(data.Status.name);
+      SetFitCoins(data.FitCoins);
     } catch (error) {
       console.error('Error fetching home data:', error);
     }
@@ -104,7 +182,7 @@ const FitPulseApp = () => {
   const BackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.225.177:3000/Home/Active-Challenges', {
+      const response = await fetch('http://192.168.29.104:3000/Home/Active-Challenges', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -130,18 +208,18 @@ const FitPulseApp = () => {
       setDailyQuote(quote);
     } catch (error) {
       setDailyQuote({
-        quote: "The only bad workout is the one that didn't happen.",
-        author: "Unknown"
+        quote: "Success Don't care wheather it's cold o hot, wheather you Are sick or fit. It only care about wheather you worked for it or not.",
+        author: "Sachin Bajaj - FitStreak Founder"
       });
     }
   };
 
   const onRefresh = React.useCallback(() => {
-        setRefreshing(true);
-        Promise.all([fetchDailyMotivation(), BackendData(), fetchBackendData()])
-          .then(() => setRefreshing(false))
-          .catch(() => setRefreshing(false));
-      }, []);
+    setRefreshing(true);
+    Promise.all([fetchDailyMotivation(), BackendData(), fetchBackendData()])
+      .then(() => setRefreshing(false))
+      .catch(() => setRefreshing(false));
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -160,15 +238,14 @@ const FitPulseApp = () => {
     };
     
     loadData();
+
+    registerForPushNotificationsAsync();
+    scheduleDailyReminder();
+
+    return () => {
+      // Cleanup if needed
+    };
   }, []);
-
-  const [activeStat, setActiveStat] = React.useState<'1' | '2' | '3'>('1');
-
-  const stats = [
-    { id: '1', icon: 'shoe-prints', value: '8,562', label: 'Steps', color: '#00f5ff' },
-    { id: '2', icon: 'fire', value: '1,240', label: 'Calories', color: '#ff7b25' },
-    { id: '3', icon: 'heartbeat', value: '72', label: 'BPM', color: '#ff4d4d' }
-  ];
 
   const generateCalendarDays = () => {
     const year = currentMonth.getFullYear();
@@ -232,61 +309,6 @@ const FitPulseApp = () => {
   const weekdayHeaders = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   const calendarDays = generateCalendarDays();
 
-  const barData = {
-    '1': [
-      { day: 'M', height: 100 },
-      { day: 'T', height: 80 },
-      { day: 'W', height: 30 },
-      { day: 'T', height: 67 },
-      { day: 'F', height: 60 },
-      { day: 'S', height: 40 },
-      { day: 'S', height: 47 }
-    ],
-    '2': [
-      { day: 'M', height: 85 },
-      { day: 'T', height: 70 },
-      { day: 'W', height: 45 },
-      { day: 'T', height: 90 },
-      { day: 'F', height: 65 },
-      { day: 'S', height: 30 },
-      { day: 'S', height: 55 }
-    ],
-    '3': [
-      { day: 'M', height: 72 },
-      { day: 'T', height: 68 },
-      { day: 'W', height: 75 },
-      { day: 'T', height: 70 },
-      { day: 'F', height: 65 },
-      { day: 'S', height: 78 },
-      { day: 'S', height: 72 }
-    ]
-  };
-
-  const chartTitles = {
-    '1': 'Steps This Week',
-    '2': 'Calories Burned',
-    '3': 'Heart Rate (BPM)'
-  };
-
-  const renderStatCard = ({ item }) => (
-    <TouchableOpacity 
-      style={[
-        styles.statCard, 
-        activeStat === item.id && { 
-          borderColor: item.color, 
-          shadowColor: item.color
-        }
-      ]}
-      onPress={() => setActiveStat(item.id)}
-    >
-      <View style={[styles.statIcon, { backgroundColor: `${item.color}20` }]}>
-        <FontAwesome5 name={item.icon} size={18} color={item.color} />
-      </View>
-      <Text style={styles.statValue}>{item.value}</Text>
-      <Text style={styles.statLabel}>{item.label}</Text>
-    </TouchableOpacity>
-  );
-
   const renderChallenge = ({ item }) => (
     <TouchableOpacity 
       style={styles.challengeCard}
@@ -326,7 +348,7 @@ const FitPulseApp = () => {
     </TouchableOpacity>
   );
 
-  const renderCalendarDay = ({ item, index }) => {
+  const renderCalendarDay = ({ item, index }: { item: any; index: number }) => {
     if (item.status === 'empty') {
       return <View style={[styles.calendarDay, styles.emptyDay]} key={index} />;
     }
@@ -353,16 +375,6 @@ const FitPulseApp = () => {
     );
   };
 
-  const renderBar = ({ item }) => (
-    <View style={styles.cylinderDay}>
-      <View style={[styles.cylinderBar, { 
-        height: `${item.height}%`, 
-        backgroundColor: stats.find(s => s.id === activeStat)?.color || '#00f5ff'
-      }]} />
-      <Text style={styles.cylinderDayLabel}>{item.day}</Text>
-    </View>
-  );
-
   const getMonthName = () => {
     return currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
   };
@@ -375,15 +387,6 @@ const FitPulseApp = () => {
     });
   };
 
-  // Skeleton Loading Components
-  const SkeletonStatCard = () => (
-    <View style={[styles.statCard, styles.skeletonCard]}>
-      <View style={[styles.statIcon, styles.skeletonIcon]} />
-      <View style={[styles.skeletonText, { width: '60%', height: 20, marginBottom: 8 }]} />
-      <View style={[styles.skeletonText, { width: '40%', height: 14 }]} />
-    </View>
-  );
-
   const SkeletonChallengeCard = () => (
     <View style={[styles.challengeCard, styles.skeletonCard]}>
       <View style={[styles.skeletonText, { width: '80%', height: 18, marginBottom: 15 }]} />
@@ -395,13 +398,6 @@ const FitPulseApp = () => {
 
   const SkeletonCalendarDay = () => (
     <View style={[styles.calendarDay, styles.skeletonCalendarDay]} />
-  );
-
-  const SkeletonBar = () => (
-    <View style={styles.cylinderDay}>
-      <View style={[styles.cylinderBar, styles.skeletonBar]} />
-      <View style={[styles.skeletonText, { width: '100%', height: 10 }]} />
-    </View>
   );
 
   if (isLoading) {
@@ -435,36 +431,25 @@ const FitPulseApp = () => {
             <View style={[styles.streakBadge, styles.skeletonBadge]} />
           </View>
 
-          {/* Stats Cards Skeleton */}
-          <FlatList
-            data={[1, 2, 3]}
-            renderItem={() => <SkeletonStatCard />}
-            keyExtractor={(item) => item.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.statsContainer}
-          />
-
-          {/* Bar Chart Skeleton */}
-          <View style={[styles.barChartContainer, styles.skeletonCard]}>
-            <View style={styles.chartHeader}>
-              <View style={[styles.skeletonText, { width: 120, height: 16 }]} />
-              <View style={[styles.skeletonText, { width: 80, height: 12 }]} />
+          {/* Today's Plan Skeleton */}
+          <Text style={styles.sectionTitle}>Today's Plan</Text>
+          <View style={styles.todayPlanContainer}>
+            <View style={[styles.planCard, styles.skeletonCard]}>
+              <View style={[styles.skeletonText, { width: 100, height: 18, marginBottom: 10 }]} />
+              <View style={[styles.skeletonText, { width: '80%', height: 14, marginBottom: 5 }]} />
+              <View style={[styles.skeletonText, { width: '70%', height: 14, marginBottom: 5 }]} />
+              <View style={[styles.skeletonText, { width: '60%', height: 14 }]} />
             </View>
-            <View style={styles.cylinderContainer}>
-              <FlatList
-                data={[1, 2, 3, 4, 5, 6, 7]}
-                renderItem={() => <SkeletonBar />}
-                keyExtractor={(item) => item.toString()}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.barList}
-              />
+            <View style={[styles.planCard, styles.skeletonCard]}>
+              <View style={[styles.skeletonText, { width: 100, height: 18, marginBottom: 10 }]} />
+              <View style={[styles.skeletonText, { width: '80%', height: 14, marginBottom: 5 }]} />
+              <View style={[styles.skeletonText, { width: '70%', height: 14, marginBottom: 5 }]} />
+              <View style={[styles.skeletonText, { width: '60%', height: 14 }]} />
             </View>
           </View>
 
           {/* Challenges Skeleton */}
-          <View style={[styles.skeletonText, { width: 120, height: 16, marginBottom: 15 }]} />
+          <Text style={styles.sectionTitle}>Active Challenges</Text>
           <FlatList
             data={[1, 2]}
             renderItem={() => <SkeletonChallengeCard />}
@@ -545,16 +530,16 @@ const FitPulseApp = () => {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Alex :- Badge</Text>
-            <Text style={styles.subGreeting}>Ready for today's workout?</Text>
+            <Text style={styles.greeting}>{User?.username ?? ''}</Text>
+            <Text style={styles.subGreeting}>Ready for today&apos;s workout?</Text>
           </View>
           <View style={styles.headerIcons}>
             <TouchableOpacity style={styles.avatar} onPress={() => router.push('/Profile')}>
               <FontAwesome name="user" size={20} color="#f0f0f0" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.avatar} onPress={() => router.push('/Songs')}>
+            {/* <TouchableOpacity style={styles.avatar} onPress={() => router.push('/Songs')}>
               <FontAwesome name="music" size={20} color="#f0f0f0" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity style={styles.heartIcon} onPress={() => router.push('/Notification')}>
               <FontAwesome name="heart" size={20} color="#f0f0f0" />
             </TouchableOpacity>
@@ -569,36 +554,49 @@ const FitPulseApp = () => {
           </View>
           <View style={styles.streakBadge}>
             <FontAwesome name="trophy" size={14} color="#00ff9d" />
-            <Text style={styles.streakBadgeText}>Consistent</Text>
+            <Text style={styles.streakBadgeText}>{Status}</Text>
           </View>
         </View>
 
-        {/* Stats Cards */}
-        <FlatList
-          data={stats}
-          renderItem={renderStatCard}
-          keyExtractor={item => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.statsContainer}
-        />
+        {/* Today's Plan */}
+        <Text style={styles.sectionTitle}>Today&apos;s Plan</Text>
+        <View style={styles.todayPlanContainer}>
+          <TouchableOpacity 
+            style={styles.planCard}
+            onPress={() => router.push('/Workout')}
+          >
+            <View style={styles.planHeader}>
+              <FontAwesome5 name="dumbbell" size={20} color="#00f5ff" />
+              <Text style={styles.planTitle}>Workout</Text>
+            </View>
+            <Text style={styles.planDescription}>Chest & Triceps</Text>
+            <Text style={styles.planDetail}>4 exercises • 45 mins</Text>
+            <Text style={styles.planTime}>6:00 PM</Text>
+          </TouchableOpacity>
 
-        {/* Bar Chart */}
-        <View style={styles.barChartContainer}>
-          <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>{chartTitles[activeStat]}</Text>
-            <Text style={styles.chartPeriod}>Jul 16-22</Text>
+          <TouchableOpacity 
+            style={styles.planCard}
+            onPress={() => router.push('/Diet')}
+          >
+            <View style={styles.planHeader}>
+              <FontAwesome5 name="utensils" size={18} color="#00ff9d" />
+              <Text style={styles.planTitle}>Diet</Text>
+            </View>
+            <Text style={styles.planDescription}>High Protein Meal</Text>
+            <Text style={styles.planDetail}>1800 calories • 120g protein</Text>
+            <Text style={styles.planTime}>Track your meals</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.streakHeader}>
+          <View style={styles.streakInfo}>
+            <Text style={styles.streakCount}>{FitCoins}</Text>
+            <Text style={styles.streakLabel}>FitCoins</Text>
           </View>
-          <View style={styles.cylinderContainer}>
-            <FlatList
-              data={barData[activeStat]}
-              renderItem={renderBar}
-              keyExtractor={(item, index) => index.toString()}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.barList}
-            />
-          </View>
+          {/* <View style={styles.streakBadge}>
+            <FontAwesome name="trophy" size={14} color="#00ff9d" />
+            <Text style={styles.streakBadgeText}>Badge</Text>
+          </View> */}
         </View>
 
         {/* Challenges */}
@@ -776,91 +774,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#00ff9d',
   },
-  statsContainer: {
-    gap: 10,
-    marginBottom: 15,
-  },
-  statCard: {
-    width: (width - 70) / 3,
-    backgroundColor: '#121212',
-    borderRadius: 16,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    height: 120,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 3,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#777',
-  },
-  barChartContainer: {
-    backgroundColor: '#121212',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    marginBottom: 20,
-    height: 250,
-  },
-  chartHeader: {
+  todayPlanContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
+    gap: 15,
   },
-  chartTitle: {
+  planCard: {
+    flex: 1,
+    backgroundColor: '#121212',
+    borderRadius: 16,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    minHeight: 140,
+  },
+  planHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  planTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
   },
-  chartPeriod: {
+  planDescription: {
+    fontSize: 14,
+    color: '#f0f0f0',
+    marginBottom: 5,
+  },
+  planDetail: {
     fontSize: 12,
     color: '#777',
+    marginBottom: 8,
   },
-  cylinderContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-  },
-  barList: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  cylinderDay: {
-    alignItems: 'center',
-    marginHorizontal: 8,
-    width: 24,
-    height: 150,
-    justifyContent: 'flex-end',
-  },
-  cylinderBar: {
-    width: '100%',
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
-  },
-  cylinderDayLabel: {
-    fontSize: 10,
-    marginTop: 8,
-    color: '#777',
+  planTime: {
+    fontSize: 12,
+    color: '#00f5ff',
   },
   sectionTitle: {
     fontSize: 16,
@@ -1124,9 +1076,6 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   skeletonCalendarDay: {
-    backgroundColor: '#1a1a1a',
-  },
-  skeletonBar: {
     backgroundColor: '#1a1a1a',
   },
   emptyText: {

@@ -48,7 +48,7 @@ const ProductDetail = () => {
     try {
       const token = await AsyncStorage.getItem('Token');
 
-      const response = await fetch('http://192.168.225.177:3000/Store/Cart', {
+      const response = await fetch('http://192.168.29.104:3000/Store/Cart', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

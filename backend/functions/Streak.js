@@ -10,6 +10,7 @@ async function StreakBreak() {
 
   for (const user of users) {
     if (!user.Streak?.lastScan || !user.Streak?.CurrentScan) continue;
+    console.log("Streak Break")
 
     const lastScanDate = new Date(user.Streak.lastScan);
     const currentScanDate = new Date(user.Streak.CurrentScan);
@@ -20,9 +21,7 @@ async function StreakBreak() {
     const timeDiff = currentScanDate - lastScanDate;
     const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
 
-    console.log('Before');
     if (daysDiff <= 1) continue;
-    console.log('After');
 
     let missedNonSunday = false;
     for (let i = 1; i < daysDiff; i++) {
@@ -40,9 +39,7 @@ async function StreakBreak() {
       user.Streak.lastScan = null;
       user.Streak.CurrentScan = null;
       await user.save();
-      console.log(`✅ Reset streak for user: ${user._id}`);
     } else {
-      console.log(`⏩ No reset needed for user: ${user._id} (only missed Sundays)`);
     }
   }
 }
@@ -50,5 +47,5 @@ async function StreakBreak() {
 cron.schedule('0 1 * * *', async () => {
   await StreakBreak();
 });
-
+StreakBreak();
 module.exports = router;

@@ -4,13 +4,10 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import 'react-native-reanimated';
-
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
@@ -26,7 +23,7 @@ export default function RootLayout() {
         return;
       }
 
-      const response = await fetch('http://192.168.225.177:3000/validate-token', {
+      const response = await fetch('http://192.168.29.104:3000/validate-token', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -41,6 +38,7 @@ export default function RootLayout() {
         setIsLoggedIn(false);
       }
     } catch (error) {
+      console.error('Auth check error:', error);
       await AsyncStorage.removeItem('token');
       setIsLoggedIn(false);
     }
@@ -49,27 +47,31 @@ export default function RootLayout() {
   useEffect(() => {
     checkAuthState();
 
-    const interval = setInterval(checkAuthState, 5000); // 10 sec
+    const interval = setInterval(checkAuthState, 10000); // Changed to 10 seconds (more reasonable)
     return () => clearInterval(interval);
   }, []);
 
   if (!loaded || isLoggedIn === null) {
-    return null; // Can return a SplashScreen if needed
+    return null;
   }
 
   return (
-  <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-    <Stack screenOptions={{ headerShown: false }} initialRouteName={isLoggedIn ? '(tabs)' : 'Register'}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="Profile" />
-      <Stack.Screen name="Scanner" />
-      <Stack.Screen name="Notification" />
-      <Stack.Screen name="Register" />
-      <Stack.Screen name="Cart" />
-      <Stack.Screen name="Challenge-detail" />
-      <Stack.Screen name="+not-found" />
-    </Stack>
-    <StatusBar style="auto" />
-  </ThemeProvider>
-);
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <Stack 
+        screenOptions={{ headerShown: false }} 
+        initialRouteName={isLoggedIn ? '(tabs)' : 'Register'}
+      >
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="Profile" />
+        <Stack.Screen name="GymLocationScanner" />
+        <Stack.Screen name="Notification" />
+        <Stack.Screen name="Register" />
+        <Stack.Screen name="Cart" />
+        <Stack.Screen name="Challenge-detail" />
+        <Stack.Screen name="Workout" />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+    </ThemeProvider>
+  );
 }

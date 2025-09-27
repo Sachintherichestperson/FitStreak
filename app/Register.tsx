@@ -58,7 +58,7 @@ const AuthScreen = () => {
   const handleLogin = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.225.177:3000/Login', {
+      const response = await fetch('http://192.168.29.104:3000/Login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -71,7 +71,8 @@ const AuthScreen = () => {
 
       if (response.ok) {
         await AsyncStorage.setItem('Token', data.token);
-        router.replace('/(tabs)'); // Navigate to the main app screen
+        await AsyncStorage.setItem('RefreshToken', data.refreshToken);
+        router.replace('/(tabs)');
       } else {
         Alert.alert('Error', data.message || 'Login failed');
       }
@@ -86,7 +87,7 @@ const AuthScreen = () => {
   const handleRegister = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.225.177:3000/Register', {
+      const response = await fetch('http://192.168.29.104:3000/Register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -101,7 +102,8 @@ const AuthScreen = () => {
 
       if (response.ok) {
         await AsyncStorage.setItem('Token', data.token);
-        router.replace('/(tabs)'); // Navigate to the main app screen
+        await AsyncStorage.setItem('RefreshToken', data.refreshToken);
+        router.replace('/(tabs)');
       } else {
         Alert.alert('Error', data.message || 'Registration failed');
       }

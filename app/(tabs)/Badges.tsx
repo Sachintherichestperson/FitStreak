@@ -25,7 +25,6 @@ const FitStreakBadges = () => {
   const scrollY = React.useRef(new Animated.Value(0)).current;
   const [refreshing, setRefreshing] = React.useState(false);
 
-
   const badgeImages: { [key: string]: any } = {
       Tiger : require('../../assets/images/Tiger.png'),
       Panther : require('../../assets/images/Panther.png'),
@@ -79,128 +78,171 @@ const FitStreakBadges = () => {
   const [badgeData, setBadgeData] = React.useState<BadgeData | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [BuddyData, setBuddyData] = React.useState<BuddyInfo | null>(null);
+  const [buddyData, setBuddyData] = React.useState<any>(null);
+  const [hasBuddy, setHasBuddy] = React.useState(false);
+  const [duoRankings, setDuoRankings] = React.useState<any[]>([]);
 
-    const fetchBadgeData = async () => {
-      try {
-        const token = await AsyncStorage.getItem('Token');
-        const response = await fetch('http://192.168.225.177:3000/Badges/', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+  const fetchBadgeData = async () => {
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      const response = await fetch('http://192.168.29.104:3000/Badges/', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch badge data');
-        }
-
-
-        const processedData = {
-          ...data,
-          specialBadges: data.specialBadges.map((badge: any) => {
-            // Check which badges should be earned based on current streak
-            let earned = badge.earned;
-            
-            // For Daily Beast (7-day streak)
-            if (badge.name === "Daily Beast" && data.streak >= 7) {
-              earned = true;
-            }
-            
-            // For Streak Hero (30-day streak)
-            if (badge.name === "Streak Hero" && data.streak >= 30) {
-              earned = true;
-            }
-            
-            // Add more conditions for other badges as needed
-            
-            return {
-              ...badge,
-              earned
-            };
-          })
-        };
-        
-        
-        setBadgeData(processedData);
-        
-        // Start progress animation with actual progress value
-        Animated.timing(progressAnim, {
-          toValue: data.progress / 100,
-          duration: 1500,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: false,
-        }).start();
-        
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch badge data');
       }
-    };
 
+      const processedData = {
+        ...data,
+        specialBadges: data.specialBadges.map((badge: any) => {
+          // Check which badges should be earned based on current streak
+          let earned = badge.earned;
+          
+          // For Daily Beast (7-day streak)
+          if (badge.name === "Daily Beast" && data.streak >= 7) {
+            earned = true;
+          }
+          
+          // For Streak Hero (30-day streak)
+          if (badge.name === "Streak Hero" && data.streak >= 30) {
+            earned = true;
+          }
+          
+          // Add more conditions for other badges as needed
+          
+          return {
+            ...badge,
+            earned
+          };
+        })
+      };
+      
+      setBadgeData(processedData);
+      
+      // Start progress animation with actual progress value
+      Animated.timing(progressAnim, {
+        toValue: data.progress / 100,
+        duration: 1500,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: false,
+      }).start();
+      
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const fetchBuddyData = async () => {
-      try {
-        const token = await AsyncStorage.getItem('Token');
-        const response = await fetch('http://192.168.225.177:3000/Badges/Accountability-Buddy', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+  const fetchBuddyData = async () => {
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      const response = await fetch('http://192.168.29.104:3000/Badges/Accountability-Buddy', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch badge data');
-        }
-        
-        
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch buddy data');
+      }
+      
+      // Check if user has a buddy
+      if (data.Buddy && data.Buddy.Buddy && data.Buddy.Buddy.BuddyId) {
         setBuddyData(data.Buddy);
-        
-        // Start progress animation with actual progress value
-        Animated.timing(progressAnim, {
-          toValue: data.progress / 100,
-          duration: 1500,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: false,
-        }).start();
-        
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        setHasBuddy(true);
+      } else {
+        setHasBuddy(false);
       }
-    };
+      
+    } catch (err) {
+      setError(err.message);
+      setHasBuddy(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const onRefresh = React.useCallback(() => {
-      setRefreshing(true);
-      Promise.all([fetchBadgeData(), fetchBuddyData()])
-        .then(() => setRefreshing(false))
-        .catch(() => setRefreshing(false));
-    }, []);
+  const fetchDuoRankings = async () => {
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      const response = await fetch('http://192.168.29.104:3000/Badges/Duo-Ranking', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    const translateY = scrollY.interpolate({
-      inputRange: [-100, 0],
-      outputRange: [50, 0],
-      extrapolate: 'clamp',
-    });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch duo rankings');
+      }
+      
+      if (data.success && data.data) {
+        // Process the data to calculate average streak
+        const processedRankings = data.data.map((duo: any, index: number) => {
+          const avgStreak = Math.round((duo.streak1 + duo.streak2) / 2);
+          return {
+            rank: index + 1,
+            names: `${duo.username1} & ${duo.username2}`,
+            streak: avgStreak,
+            avatars: ['👦', '👦'], // Default avatars, you can customize based on user data
+            isYou: false // You'll need to determine if this is the current user
+          };
+        });
+        
+        setDuoRankings(processedRankings);
+      }
+      
+    } catch (err) {
+      console.error('Error fetching duo rankings:', err);
+      // Fallback to mock data if API fails
+      setDuoRankings([
+        { rank: 1, names: 'Priya & Rohan', streak: 42, avatars: ['👩', '👨'] },
+        { rank: 2, names: 'Arjun & Vikram', streak: 38, avatars: ['👨', '👴'] },
+        { rank: 3, names: 'You & Aman', streak: 34, avatars: ['👦', '👦'], isYou: true },
+        { rank: 4, names: 'Neha & Ananya', streak: 28, avatars: ['👩', '👩'] },
+      ]);
+    }
+  };
 
-    const opacity = scrollY.interpolate({
-      inputRange: [-100, -50, 0],
-      outputRange: [1, 0.5, 0],
-      extrapolate: 'clamp',
-    });
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    Promise.all([fetchBadgeData(), fetchBuddyData(), fetchDuoRankings()])
+      .then(() => setRefreshing(false))
+      .catch(() => setRefreshing(false));
+  }, []);
+
+  const translateY = scrollY.interpolate({
+    inputRange: [-100, 0],
+    outputRange: [50, 0],
+    extrapolate: 'clamp',
+  });
+
+  const opacity = scrollY.interpolate({
+    inputRange: [-100, -50, 0],
+    outputRange: [1, 0.5, 0],
+    extrapolate: 'clamp',
+  });
 
   React.useEffect(() => {
     fetchBuddyData();
     fetchBadgeData();
-  }, [BuddyData]);
+    fetchDuoRankings();
+  }, []);
 
   // Start pulse animation
   React.useEffect(() => {
@@ -225,13 +267,6 @@ const FitStreakBadges = () => {
     outputRange: ['0%', '100%'],
   });
 
-  const duoRankings = [
-    { rank: 1, names: 'Priya & Rohan', streak: 42, avatars: ['👩', '👨'] },
-    { rank: 2, names: 'Arjun & Vikram', streak: 38, avatars: ['👨', '👴'] },
-    { rank: 3, names: 'You & Aman', streak: 34, avatars: ['👦', '👦'], isYou: true },
-    { rank: 4, names: 'Neha & Ananya', streak: 28, avatars: ['👩', '👩'] },
-  ];
-
   // Create level tiers from badge data
   const levelTiers = React.useMemo(() => {
     if (!badgeData) return [];
@@ -239,62 +274,61 @@ const FitStreakBadges = () => {
     const tiers = [];
     
     // Add current badge
-    // Add current badge
-if (badgeData.currentBadge) {
-  const isImage = badgeData.currentBadge.isImage;
+    if (badgeData.currentBadge) {
+      const isImage = badgeData.currentBadge.isImage;
 
-  tiers.push({
-    icon: isImage ? (
-      <Image
-        source={badgeImages[badgeData.currentBadge.icon]}
-        style={{
-          width: 52,
-          height: 40,
-          tintColor: badgeData.currentBadge.earned ? "#00ff9d" : "#555"
-        }}
-      />
-    ) : (
-      <FontAwesome5
-        name={badgeData.currentBadge.icon}
-        size={32}
-        color={badgeData.currentBadge.earned ? "#00ff9d" : "#555"}
-        solid
-      />
-    ),
-    name: badgeData.currentBadge.name,
-    active: true,
-  });
-}
+      tiers.push({
+        icon: isImage ? (
+          <Image
+            source={badgeImages[badgeData.currentBadge.icon]}
+            style={{
+              width: 60,
+              height: 60,
+              tintColor: badgeData.currentBadge.earned ? "#00ff9d" : "#555",
+              resizeMode: 'contain'
+            }}
+          />
+        ) : (
+          <FontAwesome5
+            name={badgeData.currentBadge.icon}
+            size={32}
+            color={badgeData.currentBadge.earned ? "#00ff9d" : "#555"}
+            solid
+          />
+        ),
+        name: badgeData.currentBadge.name,
+        active: true,
+      });
+    }
 
-// Add next 5 badges
-if (badgeData.nextBadges && badgeData.nextBadges.length > 0) {
-  badgeData.nextBadges.slice(0, 5).forEach((badge) => {
-    const isImage = badge.isImage;
+    // Add next 5 badges
+    if (badgeData.nextBadges && badgeData.nextBadges.length > 0) {
+      badgeData.nextBadges.slice(0, 5).forEach((badge) => {
+        const isImage = badge.isImage;
 
-    tiers.push({
-      icon: isImage ? (
-        <Image
-          source={badgeImages[badge.icon]}
-          style={{
-            width: 40,
-            height: 40,
-            tintColor: badge.earned ? "#00ff9d" : "#555"
-          }}
-        />
-      ) : (
-        <FontAwesome5
-          name={badge.icon}
-          size={32}
-          color={badge.earned ? "#00ff9d" : "#555"}
-          solid
-        />
-      ),
-      name: badge.name,
-      active: false
-    });
-  });
-}
-
+        tiers.push({
+          icon: isImage ? (
+            <Image
+              source={badgeImages[badge.icon]}
+              style={{
+                width: 60,
+                height: 60,
+                tintColor: badge.earned ? "#00ff9d" : "#555"
+              }}
+            />
+          ) : (
+            <FontAwesome5
+              name={badge.icon}
+              size={32}
+              color={badge.earned ? "#00ff9d" : "#555"}
+              solid
+            />
+          ),
+          name: badge.name,
+          active: false
+        });
+      });
+    }
     
     return tiers;
   }, [badgeData]);
@@ -311,7 +345,11 @@ if (badgeData.nextBadges && badgeData.nextBadges.length > 0) {
     return (
       <SafeAreaView style={[styles.container, styles.errorContainer]}>
         <Text style={styles.errorText}>Error loading badges: {error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => fetchBadgeData()}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => {
+          fetchBadgeData();
+          fetchBuddyData();
+          fetchDuoRankings();
+        }}>
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -361,9 +399,10 @@ if (badgeData.nextBadges && badgeData.nextBadges.length > 0) {
                   <Image
                     source={badgeImages[badgeData.currentBadge.icon]}
                     style={{
-                      width: 52,
-                      height: 52,
-                      tintColor: "#00ff9d"
+                      width: 62,
+                      height: 62,
+                      tintColor: "#00ff9d",
+                      resizeMode: 'contain',
                     }}
                   />
                 ) : (
@@ -442,8 +481,8 @@ if (badgeData.nextBadges && badgeData.nextBadges.length > 0) {
           ))}
         </View>
 
-        {/* Buddy Stats */}
-        {BuddyData && (
+        {/* Buddy Stats - Only show if user has a buddy */}
+        {hasBuddy && buddyData && (
           <LinearGradient
             colors={['#121212', '#1a1a1a']}
             start={{ x: 0, y: 0 }}
@@ -454,7 +493,7 @@ if (badgeData.nextBadges && badgeData.nextBadges.length > 0) {
               <Text style={styles.buddyTitle}>Accountability Buddy</Text>
               <View style={styles.streakCount}>
                 <FontAwesome name="fire" size={16} color="#00ff9d" />
-                <Text style={styles.streakText}>{BuddyData.Buddy.BuddyId.Streak?.Scan || 0}-day streak</Text>
+                <Text style={styles.streakText}>{buddyData.Buddy?.BuddyId?.Streak?.Scan || 0}-day streak</Text>
               </View>
             </View>
             <View style={styles.buddyInfo}>
@@ -463,10 +502,10 @@ if (badgeData.nextBadges && badgeData.nextBadges.length > 0) {
               </View>
               <View>
                 <Text style={styles.buddyName}>
-                  {BuddyData.Buddy.BuddyId.username}
+                  {buddyData.Buddy?.BuddyId?.username}
                 </Text>
                 <Text style={styles.buddyStatus}>
-                  Your gym partner since {new Date(BuddyData.Buddy.Date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                  Your gym partner since {new Date(buddyData.Buddy?.Date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
                 </Text>
               </View>
             </View>
@@ -478,24 +517,24 @@ if (badgeData.nextBadges && badgeData.nextBadges.length > 0) {
                     style={[
                       styles.comparisonBar, 
                       styles.youBar,
-                      { width: `${Math.min(100, BuddyData.Streak?.Scan || 0)}%` }
+                      { width: `${Math.min(100, buddyData.Streak?.Scan || 0)}%` }
                     ]} 
                   />
                 </View>
-                <Text style={styles.comparisonValue}>{BuddyData.Streak?.Scan || 0}%</Text>
+                <Text style={styles.comparisonValue}>{buddyData.Streak?.Scan || 0}%</Text>
               </View>
               <View style={styles.comparisonItem}>
-                <Text style={styles.comparisonLabel}>{BuddyData.Buddy.BuddyId.username || 'Buddy'}</Text>
+                <Text style={styles.comparisonLabel}>{buddyData.Buddy?.BuddyId?.username || 'Buddy'}</Text>
                 <View style={styles.comparisonBarContainer}>
                   <View 
                     style={[
                       styles.comparisonBar, 
                       styles.buddyBar,
-                      { width: `${Math.min(100, BuddyData.Buddy.BuddyId?.Streak?.Scan || 0)}%` }
+                      { width: `${Math.min(100, buddyData.Buddy?.BuddyId?.Streak?.Scan || 0)}%` }
                     ]} 
                   />
                 </View>
-                <Text style={styles.comparisonValue}>{BuddyData.Buddy.BuddyId.Streak?.Scan || 0}%</Text>
+                <Text style={styles.comparisonValue}>{buddyData.Buddy?.BuddyId.Streak?.Scan || 0}%</Text>
               </View>
             </View>
           </LinearGradient>
@@ -536,7 +575,7 @@ if (badgeData.nextBadges && badgeData.nextBadges.length > 0) {
                 <Text style={styles.duoNames}>{duo.names}</Text>
                 <View style={styles.duoStreak}>
                   <FontAwesome name="fire" size={14} color="#00ff9d" />
-                  <Text style={styles.duoStreakText}>{duo.streak} Day Streak</Text>
+                  <Text style={styles.duoStreakText}>{duo.streak} Day Avg Streak</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -608,9 +647,9 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   levelIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 75,
+    height: 75,
+    borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 255, 157, 0.08)',
@@ -795,43 +834,43 @@ const styles = StyleSheet.create({
     color: '#777',
   },
   comparisonBars: {
-  gap: 12,
-},
-comparisonItem: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 12,
-},
-comparisonLabel: {
-  width: 80,
-  fontSize: 14,
-  fontWeight: '500',
-  color: '#EEE',
-},
-comparisonBarContainer: {
-  flex: 1,
-  height: 12,
-  backgroundColor: 'rgba(255, 255, 255, 0.15)',
-  borderRadius: 6,
-  overflow: 'hidden',
-},
-comparisonBar: {
-  height: '100%',
-  borderRadius: 6,
-},
-youBar: {
-  backgroundColor: '#00ff9d',
-},
-buddyBar: {
-  backgroundColor: '#00f5ff',
-},
-comparisonValue: {
-  width: 45,
-  fontSize: 14,
-  fontWeight: '600',
-  textAlign: 'right',
-  color: 'white',
-},
+    gap: 12,
+  },
+  comparisonItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  comparisonLabel: {
+    width: 80,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#EEE',
+  },
+  comparisonBarContainer: {
+    flex: 1,
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  comparisonBar: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  youBar: {
+    backgroundColor: '#00ff9d',
+  },
+  buddyBar: {
+    backgroundColor: '#00f5ff',
+  },
+  comparisonValue: {
+    width: 45,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'right',
+    color: 'white',
+  },
   duoCard: {
     borderRadius: 16,
     padding: 15,

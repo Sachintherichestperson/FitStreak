@@ -24,9 +24,12 @@ const userSchema = new mongoose.Schema({
     StreakLost: { type: Number, default: 0 },
     Buddy: {
         BuddyId: { type: mongoose.Schema.Types.ObjectId, ref: 'User'},
-        Date: { type: Date, default: Date.now }
+        Date: { type: Date }
     },
-    BuddyCode: String,
+    BuddyCode: {
+      type: String,
+      unique: true
+    },
     Anonymous_Post: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Post'
@@ -35,7 +38,7 @@ const userSchema = new mongoose.Schema({
     mayChurn: { type: Boolean, default: false },
     ActiveChallenge: [{
         challengeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Challenges' },
-        startDate: { type: Date, default: Date.now },
+        startDate: { type: Date, },
         endDate: { type: Date },
         Progress: { type: Number, default: 0 },
         Proof: { type: mongoose.Schema.Types.ObjectId, ref: 'Proof'},
@@ -43,16 +46,16 @@ const userSchema = new mongoose.Schema({
     }],
     ChallengesCompleted: [{
       challengeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Challenges' },
-      completeDate: { type: Date, default: Date.now },
+      completeDate: { type: Date },
       Status: { type: String, enum: ['Won', 'Lose'] }
     }],
     challengeWins: [{
       challengeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Challenges' },
-      WinDate: { type: Date, default: Date.now }
+      WinDate: { type: Date }
     }],
     challengeLosed: [{
       challengeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Challenges' },
-      LoseDate: { type: Date, default: Date.now }
+      LoseDate: { type: Date }
     }],
     LoginStreak: { type: Number, default: 0 },
     Unicode: String,
@@ -72,25 +75,35 @@ const userSchema = new mongoose.Schema({
     },
     weekStart: { type: Date }, // Start date of the current week (Monday)
     pastWeeks: [{
-      weekStart: Date,
-      steps: {
-        Monday: Number,
-        Tuesday: Number,
-        Wednesday: Number,
-        Thursday: Number,
-        Friday: Number,
-        Saturday: Number,
-        Sunday: Number
-      }
-    }]
-  },
-  totalSteps: Number,
-  totalBPM: Number,
-  WorkoutLog: [{
-    date: { type: Date, required: true },
-    scanned: { type: Boolean, default: false }
-  }],
-  FitCoins: { type: Number, default: 0 },
+        weekStart: Date,
+        steps: {
+          Monday: Number,
+          Tuesday: Number,
+          Wednesday: Number,
+          Thursday: Number,
+          Friday: Number,
+          Saturday: Number,
+          Sunday: Number
+        }
+      }]
+    },
+    Reactions: { type: Number, default: 0 },
+    totalSteps: Number,
+    totalBPM: Number,
+    WorkoutLog: [{
+      date: { type: Date, default: Date.now ,required: true },
+      scanned: { type: Boolean, default: false }
+    }],
+    FitCoins: { type: Number, default: 0 },
+    workouts: [{
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Workout"
+    }],
+    Diet: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Diet'
+    }],
+    CaloriesTarget: { type: Number, default: 0 },
 });
 
 module.exports = mongoose.model('User', userSchema);

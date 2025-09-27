@@ -35,7 +35,6 @@ type Product = {
 };
 
 
-
 const AppStore = () => {
   const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -57,7 +56,7 @@ const AppStore = () => {
   const fetchBackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const productsResponse = await fetch('http://192.168.225.177:3000/Store/', {
+      const productsResponse = await fetch('http://192.168.29.104:3000/Store/', {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -107,7 +106,7 @@ const AppStore = () => {
   try {
     const token = await AsyncStorage.getItem('Token');
 
-    const response = await fetch('http://192.168.225.177:3000/Store/Cart', {
+    const response = await fetch('http://192.168.29.104:3000/Store/Cart', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -180,7 +179,7 @@ const AppStore = () => {
 
     Alert.prompt(
       'Use FitCoins',
-      `5 FitCoins = ₹3.33\n1 FitCoin = ₹0.666\n\nMax discount for this product: ₹${product.maxDiscount.toFixed(2)}\nYou can use up to ${maxUsableFitcoins} FitCoins (worth ₹${(maxUsableFitcoins * FITCOIN_TO_INR_RATE).toFixed(2)}).\n\nYour FitCoins balance: ${fitcoins}`,
+      `5 FitCoins = ₹1.65\n1 FitCoin = ₹0.33\n\nMax discount for this product: ₹${product.maxDiscount.toFixed(2)}\nYou can use up to 100 FitCoins (worth ₹${(maxUsableFitcoins * FITCOIN_TO_INR_RATE).toFixed(2)}).\n\nYour FitCoins balance: ${fitcoins}`,
       [
         {
           text: 'Cancel',
@@ -294,7 +293,7 @@ const AppStore = () => {
           <View style={styles.fitcoinContainer}>
             <FontAwesome name="diamond" size={12} color="#00f5ff" />
             <Text style={styles.fitcoinPrice}>
-              Use up to {item.fitcoinPrice} FitCoins (Save ₹{item.maxDiscount.toFixed(2)})
+              Use up to {item.fitcoinPrice} FitCoins (Save ₹ 33)
             </Text>
           </View>
         )}
@@ -411,7 +410,7 @@ const AppStore = () => {
           <View style={styles.specialOfferContent}>
             <Text style={styles.specialOfferTitle}>Double FitCoins Week!</Text>
             <Text style={styles.specialOfferText}>
-              Earn double FitCoins on all workouts this week. 5 FitCoins = ₹3.33
+              Earn double FitCoins on all workouts this week. 5 FitCoins = ₹1.65
             </Text>
             <TouchableOpacity 
               style={styles.specialOfferButton}

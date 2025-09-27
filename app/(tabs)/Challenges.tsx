@@ -37,7 +37,7 @@ export default function ChallengesScreen() {
   const fetchBackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.225.177:3000/Challenges/', {
+      const response = await fetch('http://192.168.29.104:3000/Challenges/', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,

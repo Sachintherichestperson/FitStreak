@@ -13,23 +13,27 @@ async function NonProof() {
       const { challengeId, startDate, endDate, ChallengeScan } = challengeEntry;
 
       if (!challengeId || !startDate || !endDate) {
-        console.log(`⚠️ Missing data for challenge in user ${user.username}`);
         continue;
       }
 
       const challenge = await challengemongo.findById(challengeId);
       if (!challenge) {
-        console.log(`❌ Challenge not found: ${challengeId}`);
         continue;
       }
 
       const now = new Date();
       const duration = challenge.Duration || 1;
-
-      const scanCount = ChallengeScan || 0; // ✅ FIXED: Treat as number
+      const scanCount = ChallengeScan || 0;
 
       if (now >= endDate) {
-        // ✅ Challenge has ended
+        const alreadyCompleted = user.ChallengesCompleted.some(
+          c => c.challengeId.toString() === challenge._id.toString()
+        );
+
+        if (alreadyCompleted) {
+          continue;
+        }
+
         if (scanCount >= duration) {
           user.ChallengesCompleted.push({
             challengeId: challenge._id,
@@ -37,29 +41,70 @@ async function NonProof() {
             Status: 'Won'
           });
 
-          user.challengeWins.push({
-            challengeId: challenge._id,
-            WinDate: now
-          });
+          const alreadyWon = user.challengeWins.some(
+            c => c.challengeId.toString() === challenge._id.toString()
+          );
+          if (!alreadyWon) {
+            user.challengeWins.push({
+              challengeId: challenge._id,
+              WinDate: now
+            });
+          }
+
+          const alreadyWinner = challenge.ChallengeWinners.some(
+            c => c.UserId.toString() === user._id.toString()
+          );
+          if (!alreadyWinner) {
+            challenge.ChallengeWinners.push({
+              UserId: user._id,
+              WonDate: now
+            });
+          }
 
           user.Points += 15;
         } else {
+
+          const alreadyCompleted = user.ChallengesCompleted.some(
+          c => c.challengeId.toString() === challenge._id.toString()
+        );
+
+        if (alreadyCompleted) {
+          continue;
+        }
+
           user.ChallengesCompleted.push({
             challengeId: challenge._id,
             completeDate: now,
             Status: 'Lose'
           });
 
-          user.challengeLosed.push({
-            challengeId: challenge._id,
-            LoseDate: now
-          });
+          const alreadyLosed = user.challengeLosed.some(
+            c => c.challengeId.toString() === challenge._id.toString()
+          );
+          if (!alreadyLosed) {
+            user.challengeLosed.push({
+              challengeId: challenge._id,
+              LoseDate: now
+            });
+          }
+
+          const alreadyLoser = challenge.ChallengeLosers.some(
+            c => c.UserId.toString() === user._id.toString()
+          );
+          if (!alreadyLoser) {
+            challenge.ChallengeLosers.push({
+              UserId: user._id,
+              LoseDate: now
+            });
+          }
         }
+
+        await challenge.save();
       }
     }
-
     await user.save();
   }
+
 }
 
 module.exports = router;
