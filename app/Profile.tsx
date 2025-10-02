@@ -277,7 +277,6 @@ const FitStreakProfile = () => {
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      Alert.alert('Error', error.message || 'Failed to update profile');
     } finally {
       setIsUpdatingProfile(false);
     }
@@ -341,9 +340,10 @@ const FitStreakProfile = () => {
 
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsEditing: false,
+      aspect: undefined,
       quality: 0.8,
+      allowsMultipleSelection: false,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -1444,10 +1444,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-  },
-  postActionText: {
-    color: '#888',
-    fontSize: 14,
   },
   loadingContainer: {
     height: 200,

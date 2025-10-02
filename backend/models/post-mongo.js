@@ -10,7 +10,8 @@ const postSchema = new mongoose.Schema({
     Boring: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     Comment: [{
         UserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        Comment: String
+        Comment: String,
+        CreatedAt: { type: Date, default: Date.now },
     }]
 });
 

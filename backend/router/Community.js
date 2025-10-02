@@ -4,33 +4,41 @@ const Usermongo = require('../models/User-mongo');
 const Postmongo = require('../models/post-mongo');
 const isloggedin = require('../middleware/isloggein');
 const Badgesfunc = require('../functions/Badges-func');
+const util = require('util');
 
 
 router.get('/', async (req, res) => {
-    const posts = await Postmongo.find();
+    try {
+        const posts = await Postmongo.find()
+            .populate("User", "username") // only bring username from main post's user
+            .populate("Comment.UserId", "username"); // also bring username from comment's user
 
-    const now = new Date();
+        const now = new Date();
 
-    const postsWithTimeAgo = posts.map(post => {
-        const createdAt = new Date(post.CreatedAt);
-        const diffMs = now - createdAt;
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const postsWithTimeAgo = posts.map(post => {
+            const createdAt = new Date(post.CreatedAt);
+            const diffMs = now - createdAt;
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-        let timeAgo;
-        if (diffHours < 24) {
-            timeAgo = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-        } else {
-            timeAgo = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-        }
+            let timeAgo;
+            if (diffHours < 24) {
+                timeAgo = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+            } else {
+                timeAgo = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+            }
 
-        return {
-            ...post._doc, 
-            timeAgo       
-        };
-    });
+            return {
+                ...post._doc,
+                timeAgo
+            };
+        });
 
-    res.status(200).json({ posts: postsWithTimeAgo });
+        res.status(200).json({ posts: postsWithTimeAgo });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Server error" });
+    }
 });
 
 async function LeaderBoard() {

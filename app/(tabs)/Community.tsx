@@ -23,7 +23,7 @@ import {
     Platform
 } from 'react-native';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const FitStreakCommunity = () => {
   const badgeImages: { [key: string]: any } = {
@@ -58,30 +58,31 @@ const FitStreakCommunity = () => {
 
   const [activeTab, setActiveTab] = useState('anonymous');
   type AnonymousPost = {
+  _id: string;
+  Content: string;
+  Image?: string;
+  timeAgo?: string;
+  Biceps: string[];
+  Fire: string[];
+  Boring: string[];
+  Comments: Array<{
     _id: string;
     Content: string;
-    Image?: string;
-    timeAgo?: string;
-    Biceps: string[];
-    Fire: string[];
-    Boring: string[];
-    Comments: Array<{
-      _id: string;
-      Content: string;
-      User: string;
-      CreatedAt: string;
-    }>;
-    bicepsAnim: Animated.Value;
-    fireAnim: Animated.Value;
-    boringAnim: Animated.Value;
-    userReactions: {
-      Biceps: boolean;
-      Fire: boolean;
-      Boring: boolean;
-    };
+    User: string;
+    CreatedAt: string;
+  }>;
+  bicepsAnim: Animated.Value;
+  fireAnim: Animated.Value;
+  boringAnim: Animated.Value;
+  userReactions: {
+    Biceps: boolean;
+    Fire: boolean;
+    Boring: boolean;
   };
+};
 
   const [anonymousPosts, setAnonymousPosts] = useState<AnonymousPost[]>([]);
+
   type LeaderboardUser = {
     rank: number;
     name: string;
@@ -103,21 +104,24 @@ const FitStreakCommunity = () => {
   // Comment modal state
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<AnonymousPost | null>(null);
-  const [newComment, setNewComment] = useState('');
   const commentInputRef = useRef<TextInput>(null);
+  const [newComment, setNewComment] = useState('');
+  const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
 
   const fetchBackendData = async () => {
-    try {
-      const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.29.104:3000/Community/', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const data = await response.json();
-      setAnonymousPosts(data.posts.map((post: { Biceps: string | any[]; Fire: string | any[]; Boring: string | any[]; Comments: any; }) => ({
+  try {
+    const token = await AsyncStorage.getItem('Token');
+    const response = await fetch('http://192.168.29.104:3000/Community/', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await response.json();
+
+    setAnonymousPosts(
+      data.posts.map((post: any) => ({
         ...post,
         bicepsAnim: new Animated.Value(1),
         fireAnim: new Animated.Value(1),
@@ -125,21 +129,25 @@ const FitStreakCommunity = () => {
         userReactions: {
           Biceps: post.Biceps.includes(data.currentUserId),
           Fire: post.Fire.includes(data.currentUserId),
-          Boring: post.Boring.includes(data.currentUserId)
+          Boring: post.Boring.includes(data.currentUserId),
         },
+        // Flatten and normalize comments - ensure User is a string
         Comments: (post.Comment || []).map((c: any) => ({
-        _id: c._id,
-        Content: c.Comment,
-        User: c.UserId,
-        CreatedAt: c.CreatedAt || new Date().toISOString(),
-      })),
-      })));
-      setLoading(prev => ({ ...prev, community: false }));
-    } catch (error) {
-      console.error('Error fetching community data:', error);
-      setLoading(prev => ({ ...prev, community: false }));
-    }
-  };
+          _id: c._id,
+          Content: c.Comment, // rename Comment -> Content for consistency
+          User: c.UserId?.username || 'Anonymous', // Extract username as string
+          CreatedAt: c.CreatedAt || new Date().toISOString(),
+        })),
+      }))
+    );
+
+    setLoading((prev) => ({ ...prev, community: false }));
+  } catch (error) {
+    console.error('Error fetching community data:', error);
+    setLoading((prev) => ({ ...prev, community: false }));
+  }
+};
+
 
   const fetchLeaderboardData = async () => {
     try {
@@ -247,38 +255,40 @@ const FitStreakCommunity = () => {
   };
 
   const addComment = async (postId: string) => {
-    if (!newComment.trim()) return;
+  if (!newComment.trim() || isCommentSubmitting) return;
 
-    try {
-      const token = await AsyncStorage.getItem('Token');
-      const response = await fetch(`http://192.168.29.104:3000/Community/Comment/${postId}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          Content: newComment
-        }),
-      });
+  setIsCommentSubmitting(true);
+  try {
+    const token = await AsyncStorage.getItem('Token');
+    const response = await fetch(`http://192.168.29.104:3000/Community/Comment/${postId}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        Content: newComment
+      }),
+    });
 
-      if (response.ok) {
-        const updatedPost = await response.json();
-        
-        setAnonymousPosts(prevPosts => 
-          prevPosts.map(post => 
-            post._id === postId 
-              ? { ...post, Comments: updatedPost.Comments }
-              : post
-          )
-        );
-        
-        setNewComment('');
-        // Don't close the modal, just clear the input
-      }
-    } catch (error) {
-      console.error('Error adding comment:', error);
+    if (response.ok) {
+      const updatedPost = await response.json();
+      
+      setAnonymousPosts(prevPosts => 
+        prevPosts.map(post => 
+          post._id === postId 
+            ? { ...post, Comments: updatedPost.Comments }
+            : post
+        )
+      );
+      
+      setNewComment('');
     }
+  } catch (error) {
+    console.error('Error adding comment:', error);
+  } finally {
+    setIsCommentSubmitting(false);
+  }
   };
 
   const openComments = (post: AnonymousPost) => {
@@ -296,10 +306,6 @@ const FitStreakCommunity = () => {
     setSelectedPost(null);
     setNewComment('');
   };
-
-  const handleCommentChange = useCallback((text: string) => {
-    setNewComment(text);
-  }, []);
 
   const getBadgeEmoji = (rank: number) => {
     switch(rank) {
@@ -443,7 +449,7 @@ const FitStreakCommunity = () => {
     </View>
   );
 
-  const renderLeaderboardRow = ({ item }) => (
+  const renderLeaderboardRow = ({ item }: { item: LeaderboardUser }) => (
     <View style={styles.tableRow}>
       <Text style={[styles.cellRank, item.rank === 1 && styles.goldRank, item.rank === 2 && styles.silverRank, item.rank === 3 && styles.bronzeRank]}>
         {item.rank}
@@ -470,76 +476,160 @@ const FitStreakCommunity = () => {
     </View>
   );
 
-  const CommentModal = useCallback(() => (
+  const CommentModal = () => {
+  const [localComment, setLocalComment] = useState('');
+
+  // Initialize local state when modal opens
+  useEffect(() => {
+    if (commentModalVisible) {
+      setLocalComment(newComment);
+    }
+  }, [commentModalVisible]);
+
+  const handleSubmit = () => {
+    if (localComment.trim() && selectedPost) {
+      setNewComment(localComment);
+      addComment(selectedPost._id);
+      setLocalComment('');
+    }
+  };
+
+  const formatCommentTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return `${diffInHours}h ago`;
+    } else {
+      return `${Math.floor(diffInHours / 24)}d ago`;
+    }
+  };
+
+  // Get username from comment - handle both string and object formats
+  const getUsername = (comment: any) => {
+    if (typeof comment.User === 'string') {
+      return comment.User;
+    } else if (comment.User && typeof comment.User === 'object') {
+      return comment.User.username || 'Anonymous';
+    }
+    return 'Anonymous';
+  };
+
+  return (
     <Modal
       animationType="slide"
       transparent={true}
       visible={commentModalVisible}
       onRequestClose={closeComments}
-      onShow={() => {
-        // Focus input when modal is shown
-        setTimeout(() => {
-          commentInputRef.current?.focus();
-        }, 100);
-      }}
+      statusBarTranslucent={true}
     >
       <KeyboardAvoidingView 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.modalContainer}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Comments</Text>
-            <TouchableOpacity 
-              onPress={closeComments}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView 
-            style={styles.commentsList}
-            keyboardShouldPersistTaps="handled"
-          >
-            {selectedPost?.Comments?.map((comment) => (
-              <View key={comment._id} style={styles.commentItem}>
-                <Text style={styles.commentContent}>{comment.Content}</Text>
-                <Text style={styles.commentTime}>
-                  {new Date(comment.CreatedAt).toLocaleDateString()}
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderContent}>
+                <Text style={styles.modalTitle}>Comments</Text>
+                <Text style={styles.commentsCount}>
+                  {selectedPost?.Comments?.length || 0} comment{selectedPost?.Comments?.length !== 1 ? 's' : ''}
                 </Text>
               </View>
-            ))}
+              <TouchableOpacity 
+                onPress={closeComments}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
             
-            {(!selectedPost?.Comments || selectedPost.Comments.length === 0) && (
-              <Text style={styles.noComments}>No comments yet. Be the first to comment!</Text>
-            )}
-          </ScrollView>
-          
-          <View style={styles.commentInputContainer}>
-            <TextInput
-              ref={commentInputRef}
-              style={styles.commentInput}
-              placeholder="Write a comment..."
-              placeholderTextColor="#777"
-              value={newComment}
-              onChangeText={handleCommentChange}
-              multiline
-              maxLength={500}
-              blurOnSubmit={false}
-            />
-            <TouchableOpacity 
-              style={[styles.sendButton, !newComment.trim() && styles.sendButtonDisabled]}
-              onPress={() => addComment(selectedPost?._id || '')}
-              disabled={!newComment.trim()}
+            {/* Comments List */}
+            <ScrollView 
+              style={styles.commentsList}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.commentsListContent}
             >
-              <Ionicons name="send" size={20} color={newComment.trim() ? "#00ff9d" : "#777"} />
-            </TouchableOpacity>
+              {selectedPost?.Comments?.map((comment, index) => (
+                <View key={comment._id} style={[
+                  styles.commentItem,
+                  index === 0 && styles.firstCommentItem
+                ]}>
+                  <View style={styles.commentAvatar}>
+                    <Text style={styles.commentAvatarText}>
+                      {getUsername(comment).charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.commentContentWrapper}>
+                    <View style={styles.commentHeader}>
+                      <Text style={styles.commentUsername}>
+                        {getUsername(comment)}
+                      </Text>
+                      <Text style={styles.commentTime}>
+                        {formatCommentTime(comment.CreatedAt)}
+                      </Text>
+                    </View>
+                    <Text style={styles.commentContent}>{comment.Content}</Text>
+                  </View>
+                </View>
+              ))}
+              
+              {(!selectedPost?.Comments || selectedPost.Comments.length === 0) && (
+                <View style={styles.noCommentsContainer}>
+                  <Ionicons name="chatbubble-outline" size={64} color="#444" />
+                  <Text style={styles.noCommentsTitle}>No comments yet</Text>
+                  <Text style={styles.noCommentsText}>Be the first to share your thoughts!</Text>
+                </View>
+              )}
+            </ScrollView>
+            
+            {/* Comment Input */}
+            <View style={styles.commentInputContainer}>
+              <View style={styles.commentInputWrapper}>
+                <TextInput
+                  ref={commentInputRef}
+                  style={styles.commentInput}
+                  placeholder="Write a comment..."
+                  placeholderTextColor="#777"
+                  value={localComment}
+                  onChangeText={setLocalComment}
+                  multiline
+                  maxLength={500}
+                  blurOnSubmit={false}
+                  onSubmitEditing={handleSubmit}
+                  editable={!isCommentSubmitting}
+                />
+                <TouchableOpacity 
+                  style={[
+                    styles.sendButton, 
+                    (!localComment.trim() || isCommentSubmitting) && styles.sendButtonDisabled
+                  ]}
+                  onPress={handleSubmit}
+                  disabled={!localComment.trim() || isCommentSubmitting}
+                >
+                  {isCommentSubmitting ? (
+                    <ActivityIndicator size="small" color="#777" />
+                  ) : (
+                    <Ionicons name="send" size={20} color={localComment.trim() ? "#00ff9d" : "#777"} />
+                  )}
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.commentHint}>
+                {localComment.length}/500 characters
+              </Text>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
-  ), [commentModalVisible, selectedPost, newComment, handleCommentChange]);
+  );
+};
 
   const LeadersSection = () => {
     if (loading.leaderboard) {
@@ -997,84 +1087,164 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
-  // Comment Modal Styles
+  // Enhanced Comment Modal Styles
   modalContainer: {
     flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   modalContent: {
     backgroundColor: '#121212',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    height: '70%',
-    padding: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '85%',
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    alignItems: 'flex-start',
+    padding: 20,
     paddingBottom: 15,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#1a1a1a',
+  },
+  modalHeaderContent: {
+    flex: 1,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#fff',
+    marginBottom: 4,
+  },
+  commentsCount: {
+    fontSize: 14,
+    color: '#00ff9d',
+    fontWeight: '500',
   },
   closeButton: {
-    padding: 5,
+    padding: 4,
+    marginLeft: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
   },
   commentsList: {
     flex: 1,
-    marginBottom: 15,
+  },
+  commentsListContent: {
+    padding: 20,
+    paddingBottom: 10,
   },
   commentItem: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    padding: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
+    borderRadius: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#00ff9d',
   },
-  commentContent: {
-    color: '#fff',
+  firstCommentItem: {
+    marginTop: 0,
+  },
+  commentAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 255, 157, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  commentAvatarText: {
+    color: '#00ff9d',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  commentContentWrapper: {
+    flex: 1,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  commentUsername: {
+    color: '#00ff9d',
+    fontWeight: '600',
     fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 5,
   },
   commentTime: {
     color: '#777',
     fontSize: 12,
+    fontWeight: '500',
   },
-  noComments: {
+  commentContent: {
+    color: '#fff',
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  noCommentsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  noCommentsTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noCommentsText: {
     color: '#777',
-    textAlign: 'center',
     fontSize: 14,
-    marginTop: 20,
+    textAlign: 'center',
   },
   commentInputContainer: {
+    padding: 20,
+    paddingTop: 15,
+    backgroundColor: '#1a1a1a',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  commentInputWrapper: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 8,
   },
   commentInput: {
     flex: 1,
     color: '#fff',
-    fontSize: 14,
-    maxHeight: 80,
+    fontSize: 16,
+    maxHeight: 100,
     padding: 0,
     margin: 0,
+    textAlignVertical: 'center',
   },
   sendButton: {
-    padding: 5,
-    marginLeft: 10,
+    padding: 8,
+    marginLeft: 8,
+    backgroundColor: 'rgba(0, 255, 157, 0.1)',
+    borderRadius: 20,
   },
   sendButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  commentHint: {
+    color: '#777',
+    fontSize: 12,
+    textAlign: 'right',
   },
 });
 
