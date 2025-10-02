@@ -3,13 +3,23 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
     username: String,
     email: String,
+    NotificationToken: String,
+    Location: {
+    latitude: {
+      type: Number,
+    },
+    longitude: {
+      type: Number,
+    },
+  },
     TotalPost: { type: Number, default: 0 },
     password: String,
     Points: { type: Number, default: 0 },
-    Streak: { 
-        Scan: { type: Number, default: 0 },
-        CurrentScan: { type: Date },
+    Streak: {
+        Track: { type: Number, default: 0 },
+        CurrentTrack: { type: Date },
         lastScan: { type: Date },
+        lastNotificationSent: { type: String }
     },
     cart: [{
       type: mongoose.Schema.Types.ObjectId,
@@ -63,33 +73,7 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Gym'
     },
-    Steps: {
-    currentWeek: {
-      Monday: { type: Number, default: 0 },
-      Tuesday: { type: Number, default: 0 },
-      Wednesday: { type: Number, default: 0 },
-      Thursday: { type: Number, default: 0 },
-      Friday: { type: Number, default: 0 },
-      Saturday: { type: Number, default: 0 },
-      Sunday: { type: Number, default: 0 }
-    },
-    weekStart: { type: Date }, // Start date of the current week (Monday)
-    pastWeeks: [{
-        weekStart: Date,
-        steps: {
-          Monday: Number,
-          Tuesday: Number,
-          Wednesday: Number,
-          Thursday: Number,
-          Friday: Number,
-          Saturday: Number,
-          Sunday: Number
-        }
-      }]
-    },
     Reactions: { type: Number, default: 0 },
-    totalSteps: Number,
-    totalBPM: Number,
     WorkoutLog: [{
       date: { type: Date, default: Date.now ,required: true },
       scanned: { type: Boolean, default: false }

@@ -1,10 +1,10 @@
+import { useColorScheme } from '@/hooks/useColorScheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -63,7 +63,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="Profile" />
-        <Stack.Screen name="GymLocationScanner" />
+        <Stack.Screen name="Scanner" />
         <Stack.Screen name="Notification" />
         <Stack.Screen name="Register" />
         <Stack.Screen name="Cart" />

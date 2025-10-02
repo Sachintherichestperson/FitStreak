@@ -9,11 +9,11 @@ const isloggedin = require('../middleware/isloggein');
 
 router.get('/', isloggedin, async (req, res) => {
     const user = await Usermongo.findById(req.user.id);
-    // const FitCoins = user.FitCoins;
+    const FitCoins = user.FitCoins;
     const store = await Storemongo.find();
-    const FitCoinsValue = 0.33
+    const FitCoinsValue = 0.93
 
-    res.json({ FitCoins: 200, store, FitCoinsValue });
+    res.json({ FitCoins, store, FitCoinsValue });
 });
 
 router.get('/Cart', isloggedin, async (req, res) => {
@@ -21,19 +21,18 @@ router.get('/Cart', isloggedin, async (req, res) => {
         const cart = await Cartmongo.findOne({ user: req.user.id })
             .populate({
                 path: 'products.product',
-                model: 'Products' // Must match your Product model name exactly
+                model: 'Products'
             })
             .exec();
 
         if (!cart) {
             return res.status(200).json({ 
                 cart: {
-                    products: [] // Return empty array if no cart exists
+                    products: []
                 } 
             });
         }
 
-        // Transform the data for frontend
         const responseData = {
             _id: cart._id,
             user: cart.user,
@@ -74,7 +73,6 @@ router.put('/Cart/:itemId', isloggedin, async (req, res) => {
             return res.status(404).json({ message: 'Cart not found' });
         }
 
-        // Find the item in cart
         const itemIndex = cart.products.findIndex(
             item => item._id.toString() === itemId
         );
@@ -83,13 +81,10 @@ router.put('/Cart/:itemId', isloggedin, async (req, res) => {
             return res.status(404).json({ message: 'Item not found in cart' });
         }
 
-        // Update quantity
         cart.products[itemIndex].quantity = quantity;
 
-        // Save the updated cart
         const updatedCart = await cart.save();
 
-        // Populate before sending response
         await updatedCart.populate({
             path: 'products.product',
             model: 'Products'
@@ -115,21 +110,17 @@ router.delete('/Cart/:itemId', isloggedin, async (req, res) => {
             return res.status(404).json({ message: 'Cart not found' });
         }
 
-        // Filter out the item to remove
         const initialLength = cart.products.length;
         cart.products = cart.products.filter(
             item => item._id.toString() !== itemId
         );
 
-        // If nothing was removed
         if (initialLength === cart.products.length) {
             return res.status(404).json({ message: 'Item not found in cart' });
         }
 
-        // Save the updated cart
         const updatedCart = await cart.save();
 
-        // Populate before sending response
         await updatedCart.populate({
             path: 'products.product',
             model: 'Products'
@@ -169,10 +160,8 @@ router.post('/Cart', isloggedin, async (req, res) => {
             const existingProduct = cart.products.find(p => p.product.toString() === productId);
 
             if (existingProduct) {
-                // If product already in cart, update quantity
                 existingProduct.quantity += quantity;
             } else {
-                // Else, push new product into cart
                 cart.products.push({ product: productId, quantity });
             }
         }

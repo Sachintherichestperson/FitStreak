@@ -35,6 +35,7 @@ export default function ChallengeDetailScreen() {
   };
   
   const [challenge, setChallenge] = useState<ChallengeType | null>(null);
+  console.log(challenge);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isJoined, setIsJoined] = useState(false);

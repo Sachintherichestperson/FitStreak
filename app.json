@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MyFirstApp",
+    "name": "FitStreak",
     "slug": "MyFirstApp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,7 +19,7 @@
       "package": "com.anonymous.MyFirstApp",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -38,7 +38,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
@@ -59,7 +59,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "926cffe7-914c-47a2-907e-20dcf36ca2ed"
+        "projectId": "898f80c6-343d-4d66-89bd-7cd76476b343"
       }
     },
     "experiments": {
@@ -70,6 +70,6 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "owner": "bajajsachin"
+    "owner": "sachinbajaj"
   }
 }

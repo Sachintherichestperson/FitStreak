@@ -9,6 +9,7 @@ import { Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity,
 const ChallengeProofSubmission = () => {
   const router = useRouter();
   const { challengeId } = useLocalSearchParams();
+  
   type Challenge = {
     Title: string;
     Description: string;
@@ -26,6 +27,7 @@ const ChallengeProofSubmission = () => {
   const [proofStatus, setProofStatus] = useState('To-be-submitted');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [challengeResult, setChallengeResult] = useState<string | null | undefined>();
+  const [lastSubmissionDate, setLastSubmissionDate] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchChallengeDetails = async () => {
@@ -64,19 +66,25 @@ const ChallengeProofSubmission = () => {
         });
         const proofData = await proofResponse.json();
         setProofStatus(proofData.status);
+        setLastSubmissionDate(proofData.lastSubmissionDate || null);
         
-        // Check challenge result
-        const resultResponse = await fetch(`http://192.168.29.104:3000/Challenges/check-challenge-result/${challengeId}`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        const resultData = await resultResponse.json();
+        // Only check challenge result if proof is approved or challenge is non-proof
+        if (proofData.status === 'Approve' || challenge?.Challenge_Type === 'Non-Proof') {
+          const resultResponse = await fetch(`http://192.168.29.104:3000/Challenges/check-challenge-result/${challengeId}`, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          const resultData = await resultResponse.json();
 
-        if (resultData.Status) {
-          setChallengeResult(resultData.Status);
+          console.log('Challenge Result:', resultData);
+          if (resultData.Status && resultData.Status !== 'Pending') {
+            setChallengeResult(resultData.Status);
+          } else {
+            setChallengeResult(null);
+          }
         } else {
           setChallengeResult(null);
         }
@@ -84,11 +92,14 @@ const ChallengeProofSubmission = () => {
         console.error('Error fetching status:', error);
         setProofStatus('To-be-submitted');
         setChallengeResult(null);
+        setLastSubmissionDate(null);
       }
     };
 
-    fetchProofStatus();
-  }, [challengeId, isSubmitting]);
+    if (challenge) {
+      fetchProofStatus();
+    }
+  }, [challengeId, isSubmitting, challenge]);
 
   const captureMedia = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -101,6 +112,7 @@ const ChallengeProofSubmission = () => {
       Alert.alert('Error', 'Challenge details not loaded');
       return;
     }
+
     const mediaType = challenge.ProofType === 'Image' 
       ? ImagePicker.MediaTypeOptions.Images 
       : ImagePicker.MediaTypeOptions.Videos;
@@ -166,6 +178,37 @@ const ChallengeProofSubmission = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const shouldShowProofSubmission = () => {
+    if (!challenge) return false;
+    
+    // For non-proof challenges, never show proof submission
+    if (challenge.Challenge_Type !== 'Proof') {
+      return false;
+    }
+
+    // If there's a challenge result (Won/Lose), don't show proof submission
+    if (challengeResult) {
+      return false;
+    }
+
+    // If proof is already approved, don't show submission
+    if (proofStatus === 'Approve') {
+      return false;
+    }
+
+    // Check if proof was submitted today
+    if (lastSubmissionDate) {
+      const today = new Date().toISOString().split('T')[0];
+      const submissionDate = new Date(lastSubmissionDate).toISOString().split('T')[0];
+      if (submissionDate === today && proofStatus === 'Pending') {
+        return false; // Already submitted today and pending review
+      }
+    }
+
+    // For rejected proofs or to-be-submitted, show submission
+    return proofStatus === 'Reject' || proofStatus === 'To-be-submitted';
   };
 
   const renderWinUI = () => {
@@ -315,6 +358,11 @@ const ChallengeProofSubmission = () => {
       return challengeResult === 'Won' ? renderWinUI() : renderLoseUI();
     }
 
+    // Check if we should show proof submission
+    if (shouldShowProofSubmission()) {
+      return renderProofSubmission();
+    }
+
     // Then check proof status
     switch (proofStatus) {
       case 'Pending':
@@ -322,7 +370,12 @@ const ChallengeProofSubmission = () => {
           <View style={styles.statusContainer}>
             <Ionicons name="time" size={60} color="#FFA500" />
             <Text style={[styles.statusText, { color: '#FFA500' }]}>Proof Under Review</Text>
-            <Text style={styles.statusSubText}>Your submission is being reviewed by our team</Text>
+            <Text style={styles.statusSubText}>
+              {lastSubmissionDate 
+                ? `Your submission from ${new Date(lastSubmissionDate).toLocaleDateString()} is being reviewed by our team`
+                : 'Your submission is being reviewed by our team'
+              }
+            </Text>
           </View>
         );
       case 'Approve':

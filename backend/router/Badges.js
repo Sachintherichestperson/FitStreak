@@ -11,27 +11,29 @@ router.get('/', isloggedin, async (req, res) => {
     const user = await Usermongo.findById(req.user._id).populate('Badges');
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // Check and award streak badge
-    const badgeInfo = Badgesfunc.getStreakBadge(user.Streak.Scan);
-    const nextBadges = Badgesfunc.getNextBadges(user.Streak.Scan);
+    const badgeInfo = Badgesfunc.getStreakBadge(user.Streak.Track);
+    const nextBadges = Badgesfunc.getNextBadges(user.Streak.Track);
 
     const alreadyHasBadge = await Badgemongo.findOne({
       userId: user._id,
       name: badgeInfo.currentBadge.name
     });
-
+    let currentBadgeDoc = alreadyHasBadge;
+    
     if (!alreadyHasBadge) {
-      const newBadge = new Badgemongo({ 
+      currentBadgeDoc = new Badgemongo({ 
         userId: user._id, 
         name: badgeInfo.currentBadge.name, 
         emoji: badgeInfo.currentBadge.icon, 
         description: badgeInfo.currentBadge.description 
       });
-      user.CurrentBadge = newBadge._id;
-      await newBadge.save();
+      await currentBadgeDoc.save();
+      
+      user.Badges.push(currentBadgeDoc._id);
     }
 
-    // Check and award special badges
+    user.CurrentBadge = currentBadgeDoc._id;
+
     for (const badge of Badgesfunc.specialbadges) {
       const hasBadge = user.Badges?.some(b => b.name === badge.name);
       if (badge.condition(user) && !hasBadge) {

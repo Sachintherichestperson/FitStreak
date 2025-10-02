@@ -71,7 +71,6 @@ const AuthScreen = () => {
 
       if (response.ok) {
         await AsyncStorage.setItem('Token', data.token);
-        await AsyncStorage.setItem('RefreshToken', data.refreshToken);
         router.replace('/(tabs)');
       } else {
         Alert.alert('Error', data.message || 'Login failed');
@@ -102,7 +101,6 @@ const AuthScreen = () => {
 
       if (response.ok) {
         await AsyncStorage.setItem('Token', data.token);
-        await AsyncStorage.setItem('RefreshToken', data.refreshToken);
         router.replace('/(tabs)');
       } else {
         Alert.alert('Error', data.message || 'Registration failed');

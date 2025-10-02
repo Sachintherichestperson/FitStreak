@@ -2,6 +2,7 @@ import { Feather, FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/ve
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -27,13 +28,23 @@ type UserStreak = {
   lastScan: string;
 };
 
+type Comment = {
+  _id: string;
+  content: string;
+  timeAgo: string;
+};
+
 type AnonymousPost = {
   _id: string;
   Content: string;
+  image?: string;
   timeAgo: string;
   Biceps: number;
   Fire: number;
   isLiked: boolean;
+  comments: Comment[];
+  showComments: boolean;
+  commentText: string;
 };
 
 interface BuddyInfo {
@@ -154,7 +165,10 @@ const FitStreakProfile = () => {
           timeAgo,
           isLiked: false,
           Fire: post.Fire?.length || 0,
-          Biceps: post.Biceps.length || 0
+          Biceps: post.Biceps.length || 0,
+          comments: post.comments || [],
+          showComments: false,
+          commentText: ''
         };
       });
 
@@ -318,11 +332,18 @@ const FitStreakProfile = () => {
   };
 
   const pickImage = async () => {
+    // Request permissions
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 1,
+      quality: 0.8,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -335,49 +356,65 @@ const FitStreakProfile = () => {
   };
 
   const handlePostSubmit = async () => {
-    const token = await AsyncStorage.getItem('Token');
-    if (!postContent.trim() && !postImage) {
-      Alert.alert('Error', 'Please add some content or image to your post');
-      return;
+  const token = await AsyncStorage.getItem('Token');
+
+  if (!postContent.trim() && !postImage) {
+    Alert.alert('Error', 'Please add some content or image to your post');
+    return;
+  }
+
+  setIsPosting(true);
+
+  try {
+    const formData = new FormData();
+    formData.append('Content', postContent);
+
+    if (postImage) {
+      formData.append('image', {
+        uri: postImage,
+        type: 'image/jpeg',
+        name: 'post-image.jpg',
+      } as any);
     }
 
-    setIsPosting(true);
-    
-    try {
-      const response = await fetch('http://192.168.29.104:3000/Profile/Create-Post', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          Content: postContent
-        }),
-      });
-      const data = await response.json();
+    const response = await fetch('http://192.168.29.104:3000/Profile/Create-Post', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data', // Important for file upload
+      },
+      body: formData,
+    });
 
-      const newPost: AnonymousPost = {
-        _id: data.id || Date.now().toString(),
-        Content: postContent,
-        timeAgo: 'Just Now',
-        Biceps: 0,
-        Fire: 0,
-        isLiked: false
-      };
-      
-      setAnonymousPosts([newPost, ...anonymousPosts]);
-      setPostContent('');
-      setPostImage(null);
-      setShowPostModal(false);
-      Alert.alert('Success', 'Your anonymous post has been shared!');
-      BackendData(); // Refresh posts
-    } catch (error) {
-      console.error('Error creating post:', error);
-      Alert.alert('Error', 'Failed to create post');
-    } finally {
-      setIsPosting(false);
-    }
-  };
+    const data = await response.json();
+
+    const newPost: AnonymousPost = {
+      _id: data.id || Date.now().toString(),
+      Content: postContent,
+      image: data.imageUrl || undefined, // Make sure backend returns imageUrl
+      timeAgo: 'Just Now',
+      Biceps: 0,
+      Fire: 0,
+      isLiked: false,
+      comments: [],
+      showComments: false,
+      commentText: ''
+    };
+
+    setAnonymousPosts([newPost, ...anonymousPosts]);
+    setPostContent('');
+    setPostImage(null);
+    setShowPostModal(false);
+    Alert.alert('Success', 'Your anonymous post has been shared!');
+    BackendData(); // Refresh posts
+  } catch (error) {
+    console.error('Error creating post:', error);
+    Alert.alert('Error', 'Failed to create post');
+  } finally {
+    setIsPosting(false);
+  }
+};
+
 
   const toggleLike = (postId: string) => {
     setAnonymousPosts(anonymousPosts.map(post => {
@@ -392,6 +429,71 @@ const FitStreakProfile = () => {
     }));
   };
 
+  const toggleComments = (postId: string) => {
+    setAnonymousPosts(anonymousPosts.map(post => {
+      if (post._id === postId) {
+        return {
+          ...post,
+          showComments: !post.showComments
+        };
+      }
+      return post;
+    }));
+  };
+
+  const handleCommentChange = (postId: string, text: string) => {
+    setAnonymousPosts(anonymousPosts.map(post => {
+      if (post._id === postId) {
+        return {
+          ...post,
+          commentText: text
+        };
+      }
+      return post;
+    }));
+  };
+
+  const submitComment = async (postId: string) => {
+    const post = anonymousPosts.find(p => p._id === postId);
+    if (!post || !post.commentText.trim()) return;
+
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      const response = await fetch(`http://192.168.29.104:3000/Profile/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: post.commentText
+        }),
+      });
+
+      if (response.ok) {
+        const newComment: Comment = {
+          _id: Date.now().toString(),
+          content: post.commentText,
+          timeAgo: 'Just now'
+        };
+
+        setAnonymousPosts(anonymousPosts.map(p => {
+          if (p._id === postId) {
+            return {
+              ...p,
+              comments: [...p.comments, newComment],
+              commentText: ''
+            };
+          }
+          return p;
+        }));
+      }
+    } catch (error) {
+      console.error('Error submitting comment:', error);
+      Alert.alert('Error', 'Failed to submit comment');
+    }
+  };
+
   const settingsItems = [
     { icon: 'user', name: 'Account Settings' },
     { icon: 'bell', name: 'Notifications' },
@@ -402,6 +504,14 @@ const FitStreakProfile = () => {
   const renderPostItem = ({ item }: { item: AnonymousPost }) => (
     <View style={styles.postCard}>
       <Text style={styles.postContent}>{item.Content}</Text>
+      
+      {item.image && (
+        <Image 
+          source={{ uri: item.image }} 
+          style={styles.postImage}
+          resizeMode="cover"
+        />
+      )}
       
       <View style={styles.postFooter}>
         <Text style={styles.postTimestamp}>{item.timeAgo}</Text>
@@ -415,14 +525,65 @@ const FitStreakProfile = () => {
               {item.Biceps}
             </Text>
           </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.postAction}
+            onPress={() => toggleComments(item._id)}
+          >
+            <Text>💬</Text>
+            <Text style={styles.postActionText}>
+              {item.comments.length}
+            </Text>
+          </TouchableOpacity>
+          
           <View style={styles.postAction}>
             <Text>🔥</Text>
             <Text style={styles.postActionText}>
-              {item.Fire.length}
+              {item.Fire}
             </Text>
           </View>
         </View>
       </View>
+
+      {/* Comments Section */}
+      {item.showComments && (
+        <View style={styles.commentsSection}>
+          {/* Comments List */}
+          {item.comments.map((comment) => (
+            <View key={comment._id} style={styles.commentItem}>
+              <View style={styles.commentAvatar}>
+                <Text style={styles.commentAvatarText}>👤</Text>
+              </View>
+              <View style={styles.commentContent}>
+                <Text style={styles.commentText}>{comment.content}</Text>
+                <Text style={styles.commentTime}>{comment.timeAgo}</Text>
+              </View>
+            </View>
+          ))}
+          
+          {/* Add Comment Input */}
+          <View style={styles.addCommentContainer}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Add a comment..."
+              placeholderTextColor="#888"
+              value={item.commentText}
+              onChangeText={(text) => handleCommentChange(item._id, text)}
+              multiline
+            />
+            <TouchableOpacity 
+              style={[
+                styles.commentSubmitButton,
+                !item.commentText.trim() && styles.commentSubmitButtonDisabled
+              ]}
+              onPress={() => submitComment(item._id)}
+              disabled={!item.commentText.trim()}
+            >
+              <Text style={styles.commentSubmitText}>Post</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 
@@ -446,7 +607,7 @@ const FitStreakProfile = () => {
             <View style={styles.avatarContainer}>
               <Image
                   source={badgeImages[currentBadge]}
-                  style={[styles.badgeImage, { tintColor: '#00C896' }]} // Red tint
+                  style={[styles.badgeImage, { tintColor: '#00C896' }]}
                 />
             </View>
             
@@ -552,28 +713,12 @@ const FitStreakProfile = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Wallet</Text>
-            {/* <TouchableOpacity>
-              <Text style={styles.viewAll}>History</Text>
-            </TouchableOpacity> */}
           </View>
           
           <View style={styles.card}>
             <Text style={styles.walletBalance}>{fitCoins.toLocaleString()} FitCoins </Text>
             <View style={styles.walletActions}>
-              {/* <TouchableOpacity
-                style={[styles.walletButton, styles.primaryButton]}
-                onPress={() => handleWalletAction('convert')}
-              >
-                <FontAwesome name="refresh" size={16} color="#121212" />       
-                <Text style={styles.buttonText}>Convert</Text>
-              </TouchableOpacity> */}
-              {/* <TouchableOpacity
-                style={[styles.walletButton, styles.secondaryButton]}
-                onPress={() => handleWalletAction('add')}
-              >
-                <FontAwesome name="plus" size={16} color="#F5F5F5" />
-                <Text style={[styles.buttonText, { color: '#F5F5F5' }]}>Add</Text>
-              </TouchableOpacity> */}
+              {/* Wallet actions can be added here */}
             </View>
           </View>
         </View>
@@ -1332,6 +1477,73 @@ const styles = StyleSheet.create({
     color: '#121212',
     fontWeight: '600',
   },
+  // Comments Styles
+  commentsSection: {
+    marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#2A2A2A',
+  },
+  commentItem: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  commentAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#2A2A2A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  commentAvatarText: {
+    fontSize: 12,
+  },
+  commentContent: {
+    flex: 1,
+    backgroundColor: '#2A2A2A',
+    padding: 10,
+    borderRadius: 12,
+  },
+  commentText: {
+    color: '#F5F5F5',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  commentTime: {
+    color: '#888',
+    fontSize: 11,
+  },
+  addCommentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    color: '#F5F5F5',
+    marginRight: 10,
+    fontSize: 14,
+  },
+  commentSubmitButton: {
+    backgroundColor: '#00C896',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  commentSubmitButtonDisabled: {
+    backgroundColor: '#2A2A2A',
+  },
+  commentSubmitText: {
+    color: '#121212',
+    fontWeight: '600',
+    fontSize: 14,
+  },
   // Post Modal Styles
   postModalContainer: {
     flex: 1,
@@ -1401,6 +1613,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     padding: 8,
+  },
+  postActionText: {
+    color: '#00C896',
+    fontSize: 14,
   },
   postPrivacyInfo: {
     flexDirection: 'row',

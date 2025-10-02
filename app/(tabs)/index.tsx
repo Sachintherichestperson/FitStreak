@@ -16,12 +16,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import Constants from 'expo-constants';
-
-const androidPackage = Constants.manifest2?.android?.package || Constants.expoConfig?.android?.package;
-
-console.log("Package name:", androidPackage);
-
 
 
 Notifications.setNotificationHandler({
@@ -70,11 +64,6 @@ const FitPulseApp = () => {
 
   const registerForPushNotificationsAsync = async () => {
   try {
-    // Check if we're on a physical device
-    if (!Constants.isDevice) {
-      console.log('Must use physical device for push notifications');
-    }
-
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     
@@ -90,8 +79,6 @@ const FitPulseApp = () => {
     
     // Get the Expo push token
     const token = (await Notifications.getExpoPushTokenAsync()).data;
-    
-    console.log('Expo push token:', token);
     
     // Save the token to your backend (uncomment your existing code)
     let userToken = await AsyncStorage.getItem('Token');
@@ -116,7 +103,6 @@ const FitPulseApp = () => {
             expoPushToken: token,
           }),
         });
-        console.log('Push token saved to server successfully');
       } catch (error) {
         console.error('Error sending push token to server:', error);
       }
@@ -172,7 +158,7 @@ const FitPulseApp = () => {
       setStreak(data.streak || '0');
       setUser(data.user)
       setLoggedDays(data.loggedDates || []);
-      setStatus(data.Status.name);
+      setStatus(data.Status.name || "The Ant");
       SetFitCoins(data.FitCoins);
     } catch (error) {
       console.error('Error fetching home data:', error);

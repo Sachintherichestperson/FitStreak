@@ -8,23 +8,28 @@ const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const multer = require("multer");
 const Badgesfunc = require('../functions/Badges-func');
 
+require('dotenv').config();
+
 cloudinary.config({
-    cloud_name: "deb6oiddj",
-    api_key: "154685345461446",
-    api_secret: "TSCdCqGFzoblknGCffFTtYcyE8Y",
+    cloud_name: process.env.cloud_name,
+    api_key: process.env.api_key,
+    api_secret: process.env.api_secret,
 });
 
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: async (req, file) => {
-        // Ensure only image files are uploaded
-        if (!file.mimetype.startsWith("image/")) {
-            throw new Error("Only image files are allowed!");
+        const allowedTypes = ["image", "video"];
+        const fileType = file.mimetype.split("/")[0];
+        if (!allowedTypes.includes(fileType)) {
+            throw new Error("Only image and video files are allowed!");
         }
+
         return {
             folder: "uploads",
             format: file.mimetype.split("/")[1],
             public_id: file.originalname.split(".")[0],
+            resource_type: fileType,
         };
     },
 });
@@ -32,10 +37,11 @@ const storage = new CloudinaryStorage({
 const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith("image/")) {
+        const fileType = file.mimetype.split("/")[0];
+        if (fileType === "image" || fileType === "video") {
             cb(null, true);
         } else {
-            cb(new Error("Only images are allowed"), false);
+            cb(new Error("Only images and videos are allowed"), false);
         }
     },
 });
@@ -55,10 +61,24 @@ router.get('/', isloggedin, async (req, res) => {
     res.status(200).json({ user, posts, Level, Buddy, Badge, Coins });
 });
 
-router.post('/Create-Post', isloggedin, async (req, res) => {
+router.post('/Create-Post',upload.single("image"), isloggedin, async (req, res) => {
     const { Content } = req.body;
     const user = await Usermongo.findById(req.user.id);
-    const post = new Postmongo({ Content, user: user._id, CreatedAt: new Date(), Biceps: [], Fire: [], Boring: [] });
+
+    const post = new Postmongo({ 
+      Content,
+      user: user._id, 
+      CreatedAt: new Date(), 
+      Biceps: [], 
+      Fire: [], 
+      Boring: [] 
+    });
+
+    if (req.file) {
+      post.Image = req.file.path; // store path or URL
+    }
+
+
     user.Anonymous_Post.push(post._id);
     user.TotalPost += 1;
     await user.save();
@@ -107,64 +127,24 @@ router.post('/update-buddy', isloggedin, async (req, res) => {
   }
 });
 
-router.post('/Profile-Edit', isloggedin, upload.single('avatar'), async (req, res) => {
-  try {
-    const { username } = req.body;
-    const userId = req.user._id;
-
-    if (!username || username.trim().length < 3) {
-      return res.status(400).json({ error: 'Username must be at least 3 characters long' });
-    }
-
-    const avatar = req.file.path;
-
-    const updatedUser = await Usermongo.findByIdAndUpdate(
-      userId,
-      username,
-      avatar,
-      { new: true }
-    ).select('-password');
-
-
-    if (!updatedUser) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({
-      message: 'Profile updated successfully',
-      user: updatedUser
-    });
-
-  } catch (error) {
-    console.error('Error updating profile:', error);
-    res.status(500).json({ error: 'Server error while updating profile' });
-  }
-});
-
 router.post('/remove-buddy', isloggedin, async function (req, res) {
   try {
-    // Get the current user
     const currentUser = await Usermongo.findById(req.user.id);
 
-    // Check if the user even has a buddy
     if (!currentUser.Buddy || !currentUser.Buddy.BuddyId) {
       return res.status(400).json({ message: "No buddy to remove." });
     }
 
-    // Get the buddy user
     const buddyUser = await Usermongo.findById(currentUser.Buddy.BuddyId);
 
     if (!buddyUser) {
       return res.status(404).json({ message: "Buddy not found." });
     }
 
-    // Remove buddy fields for current user
     currentUser.Buddy = {};
 
-    // Remove buddy fields for the buddy user
     buddyUser.Buddy = {};
 
-    // Save both users
     await currentUser.save();
     await buddyUser.save();
 

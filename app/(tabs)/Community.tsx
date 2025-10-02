@@ -1,7 +1,7 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     ActivityIndicator,
     Animated,
@@ -15,8 +15,12 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
-    View
+    View,
+    Modal,
+    KeyboardAvoidingView,
+    Platform
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -56,10 +60,17 @@ const FitStreakCommunity = () => {
   type AnonymousPost = {
     _id: string;
     Content: string;
+    Image?: string;
     timeAgo?: string;
     Biceps: string[];
     Fire: string[];
     Boring: string[];
+    Comments: Array<{
+      _id: string;
+      Content: string;
+      User: string;
+      CreatedAt: string;
+    }>;
     bicepsAnim: Animated.Value;
     fireAnim: Animated.Value;
     boringAnim: Animated.Value;
@@ -88,6 +99,12 @@ const FitStreakCommunity = () => {
     community: true
   });
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Comment modal state
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<AnonymousPost | null>(null);
+  const [newComment, setNewComment] = useState('');
+  const commentInputRef = useRef<TextInput>(null);
 
   const fetchBackendData = async () => {
     try {
@@ -100,8 +117,7 @@ const FitStreakCommunity = () => {
         },
       });
       const data = await response.json();
-      // Assuming the backend returns the current user's ID as data.currentUserId
-      setAnonymousPosts(data.posts.map((post: { Biceps: string | any[]; Fire: string | any[]; Boring: string | any[]; }) => ({
+      setAnonymousPosts(data.posts.map((post: { Biceps: string | any[]; Fire: string | any[]; Boring: string | any[]; Comments: any; }) => ({
         ...post,
         bicepsAnim: new Animated.Value(1),
         fireAnim: new Animated.Value(1),
@@ -110,7 +126,13 @@ const FitStreakCommunity = () => {
           Biceps: post.Biceps.includes(data.currentUserId),
           Fire: post.Fire.includes(data.currentUserId),
           Boring: post.Boring.includes(data.currentUserId)
-        }
+        },
+        Comments: (post.Comment || []).map((c: any) => ({
+        _id: c._id,
+        Content: c.Comment,
+        User: c.UserId,
+        CreatedAt: c.CreatedAt || new Date().toISOString(),
+      })),
       })));
       setLoading(prev => ({ ...prev, community: false }));
     } catch (error) {
@@ -201,7 +223,6 @@ const FitStreakCommunity = () => {
                 })
               ]).start();
 
-              // Create new user reactions object
               const newUserReactions = {
                 Biceps: reactionType === 'Biceps',
                 Fire: reactionType === 'Fire',
@@ -224,6 +245,61 @@ const FitStreakCommunity = () => {
       console.error('Error reacting to post:', error);
     }
   };
+
+  const addComment = async (postId: string) => {
+    if (!newComment.trim()) return;
+
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      const response = await fetch(`http://192.168.29.104:3000/Community/Comment/${postId}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          Content: newComment
+        }),
+      });
+
+      if (response.ok) {
+        const updatedPost = await response.json();
+        
+        setAnonymousPosts(prevPosts => 
+          prevPosts.map(post => 
+            post._id === postId 
+              ? { ...post, Comments: updatedPost.Comments }
+              : post
+          )
+        );
+        
+        setNewComment('');
+        // Don't close the modal, just clear the input
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
+  };
+
+  const openComments = (post: AnonymousPost) => {
+    setSelectedPost(post);
+    setNewComment(''); // Clear previous comment
+    setCommentModalVisible(true);
+    // Focus the input after a short delay to ensure modal is visible
+    setTimeout(() => {
+      commentInputRef.current?.focus();
+    }, 100);
+  };
+
+  const closeComments = () => {
+    setCommentModalVisible(false);
+    setSelectedPost(null);
+    setNewComment('');
+  };
+
+  const handleCommentChange = useCallback((text: string) => {
+    setNewComment(text);
+  }, []);
 
   const getBadgeEmoji = (rank: number) => {
     switch(rank) {
@@ -283,6 +359,16 @@ const FitStreakCommunity = () => {
     return (
       <View style={styles.postCard}>
         <Text style={styles.postContent}>{item.Content}</Text>
+        
+        {/* Post Image */}
+        {item.Image && (
+          <Image 
+            source={{ uri: item.Image }} 
+            style={styles.postImage}
+            resizeMode="cover"
+          />
+        )}
+        
         <View style={styles.postMeta}>
           <Text style={styles.postTime}>{item.timeAgo}</Text>
           <View style={styles.postReactions}>
@@ -321,6 +407,16 @@ const FitStreakCommunity = () => {
               ]}>
                 😴 { item.Boring?.length || 0 }
               </Animated.Text>
+            </TouchableOpacity>
+            
+            {/* Comment Button */}
+            <TouchableOpacity
+              style={styles.reactionBtn}
+              onPress={() => openComments(item)}
+            >
+              <Text style={styles.reactionText}>
+                💬 { item.Comments?.length || 0 }
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -373,6 +469,77 @@ const FitStreakCommunity = () => {
       <Text style={styles.cellPoints}>{item.points.toLocaleString()}</Text>
     </View>
   );
+
+  const CommentModal = useCallback(() => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={commentModalVisible}
+      onRequestClose={closeComments}
+      onShow={() => {
+        // Focus input when modal is shown
+        setTimeout(() => {
+          commentInputRef.current?.focus();
+        }, 100);
+      }}
+    >
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.modalContainer}
+      >
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Comments</Text>
+            <TouchableOpacity 
+              onPress={closeComments}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView 
+            style={styles.commentsList}
+            keyboardShouldPersistTaps="handled"
+          >
+            {selectedPost?.Comments?.map((comment) => (
+              <View key={comment._id} style={styles.commentItem}>
+                <Text style={styles.commentContent}>{comment.Content}</Text>
+                <Text style={styles.commentTime}>
+                  {new Date(comment.CreatedAt).toLocaleDateString()}
+                </Text>
+              </View>
+            ))}
+            
+            {(!selectedPost?.Comments || selectedPost.Comments.length === 0) && (
+              <Text style={styles.noComments}>No comments yet. Be the first to comment!</Text>
+            )}
+          </ScrollView>
+          
+          <View style={styles.commentInputContainer}>
+            <TextInput
+              ref={commentInputRef}
+              style={styles.commentInput}
+              placeholder="Write a comment..."
+              placeholderTextColor="#777"
+              value={newComment}
+              onChangeText={handleCommentChange}
+              multiline
+              maxLength={500}
+              blurOnSubmit={false}
+            />
+            <TouchableOpacity 
+              style={[styles.sendButton, !newComment.trim() && styles.sendButtonDisabled]}
+              onPress={() => addComment(selectedPost?._id || '')}
+              disabled={!newComment.trim()}
+            >
+              <Ionicons name="send" size={20} color={newComment.trim() ? "#00ff9d" : "#777"} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  ), [commentModalVisible, selectedPost, newComment, handleCommentChange]);
 
   const LeadersSection = () => {
     if (loading.leaderboard) {
@@ -503,6 +670,8 @@ const FitStreakCommunity = () => {
           {activeTab === 'anonymous' && <AnonymousSection />}
           {activeTab === 'leaders' && <LeadersSection />}
         </ScrollView>
+
+        <CommentModal />
       </ImageBackground>
     </SafeAreaView>
   );
@@ -625,6 +794,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     color: '#f0f0f0',
   },
+  postImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 15,
+  },
   postMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -636,7 +811,7 @@ const styles = StyleSheet.create({
   },
   postReactions: {
     flexDirection: 'row',
-    gap: 15,
+    gap: 10,
   },
   reactionBtn: {
     flexDirection: 'row',
@@ -821,6 +996,85 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: 'white',
+  },
+  // Comment Modal Styles
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  modalContent: {
+    backgroundColor: '#121212',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '70%',
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  commentsList: {
+    flex: 1,
+    marginBottom: 15,
+  },
+  commentItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  commentContent: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 5,
+  },
+  commentTime: {
+    color: '#777',
+    fontSize: 12,
+  },
+  noComments: {
+    color: '#777',
+    textAlign: 'center',
+    fontSize: 14,
+    marginTop: 20,
+  },
+  commentInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  commentInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    maxHeight: 80,
+    padding: 0,
+    margin: 0,
+  },
+  sendButton: {
+    padding: 5,
+    marginLeft: 10,
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
   },
 });
 

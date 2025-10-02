@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
+const sendNotification = require("./functions/Notification");
+require('dotenv').config();
 
 //functions
 const Progress_func = require('./functions/Progress');
@@ -95,7 +97,7 @@ app.post('/register', async (req, res) => {
   }
 
   try {
-    const gymName = matchedGym ? matchedGym.name : null; // or matchedGym.GymName depending on schema
+    const gymName = matchedGym ? matchedGym.Name : null; // or matchedGym.GymName depending on schema
     const buddyCode = await createUniqueBuddyCode(username, gymName);
 
     const user = new Usermongo({
@@ -120,27 +122,29 @@ app.post('/register', async (req, res) => {
 
     const token = jwt.sign(
       { id: user._id },
-      "Jwtsecret839dhwieuh",
+      process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
 
-    const refreshToken = jwt.sign(
-      { id: user._id },
-      "8934735345uhduydvc89",
-      { expiresIn: '7d' }
-    );
 
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie('token', token, {
       httpOnly: true,
-      secure: false, // set to true if using HTTPS
+      secure: false,
       sameSite: 'Strict',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
+    const data = { screen: 'Home' }
+    sendNotification(
+      user.NotificationToken,
+      "Welcome To Legends Place",  // title/heading
+      "Thanks for joining! Let's start your fitness journey.", // body
+      data
+    );
+
     res.status(201).json({
       message: 'Registered successfully',
       token,
-      refreshToken,
       buddyCode: user.BuddyCode
     });
 
@@ -158,13 +162,13 @@ app.post('/refresh', (req, res) => {
     return res.status(401).json({ message: 'Refresh token missing' });
   }
 
-  jwt.verify(refreshToken, "8934735345uhduydvc89", (err, decoded) => {
+  jwt.verify(refreshToken, process.env.REF_SECRET, (err, decoded) => {
     if (err) return res.status(401).json({ message: 'Invalid refresh token' });
 
     const newAccessToken = jwt.sign(
       { id: decoded.id },
-      "Jwtsecret839dhwieuh",
-      { expiresIn: '30d' } // short expiry for access token
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
     );
 
     res.json({ token: newAccessToken });
@@ -181,24 +185,26 @@ app.post('/Login', async (req, res) => {
     if (user.password !== password) {
         return res.status(401).json({ error: 'Invalid password' });
     }
-    const token = jwt.sign({ email, id: user._id }, 'Jwtsecret839dhwieuh', {
+    const token = jwt.sign({ email, id: user._id }, process.env.JWT_SECRET, {
         expiresIn: '30d',
     });
 
-    const refreshToken = jwt.sign(
-      { id: user._id },
-      "8934735345uhduydvc89",
-      { expiresIn: '30d' }
-    );
-
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie('token', token, {
       httpOnly: true,
-      secure: false, // set to true if using HTTPS
+      secure: false,
       sameSite: 'Strict',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    res.status(200).json({ message: 'User logged in successfully', token, refreshToken });
+    const data = { screen: 'Diet' }
+    sendNotification(
+      user.NotificationToken,
+      "Welcome To Legends Place",
+      "Thanks for joining! Let's start your fitness journey.",
+      data
+    );
+    
+    res.status(200).json({ message: 'User logged in successfully', token });
 });
 
 

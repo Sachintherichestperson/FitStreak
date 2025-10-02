@@ -5,6 +5,7 @@ const Postmongo = require('../models/post-mongo');
 const Challengemongo = require('../models/Challenge-mongo');
 const isloggedin = require('../middleware/isloggein');
 const Gymmongo = require('../models/Gymmongo');
+const UserBadge = require("../functions/UserBadge");
 const Streakfunction = require('../functions/Streak');
 
 router.get('/', isloggedin, async (req, res) => {
@@ -18,101 +19,15 @@ router.get('/', isloggedin, async (req, res) => {
         .map(log => log.date.toISOString().split('T')[0]);
 
     const FitCoins = user.FitCoins || 0
-    const Status = user.CurrentBadge;
+    const Status = user.CurrentBadge || "The Ant";
     
     res.json({ 
         user,
-        streak: user.Streak.Scan,
+        streak: user.Streak.Track,
         loggedDates,
         FitCoins,
         Status
     });
-});
-
-router.post('/Scan', isloggedin, async (req, res) => {
-  const { qrData } = req.body;
-
-  if (!qrData) {
-    return res.status(400).json({ error: 'No QR data received' });
-  }
-
-  try {
-    let gymId;
-    try {
-      const url = new URL(qrData);
-      gymId = url.searchParams.get("gymId");
-    } catch (urlErr) {
-      console.log("Invalid QR format", urlErr);
-      return res.status(400).json({ error: 'Invalid QR format' });
-    }
-
-    const user = await Usermongo.findById(req.user._id)
-      .populate('ActiveChallenge.challengeId');
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (gymId !== user.Unicode) {
-      return res.status(400).json({ error: 'QR code does not match your assigned gym ❌' });
-    }
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const currentScan = user.Streak.CurrentScan;
-    if (currentScan) {
-      const last = new Date(currentScan);
-      const isSameDay =
-        last.getDate() === today.getDate() &&
-        last.getMonth() === today.getMonth() &&
-        last.getFullYear() === today.getFullYear();
-
-      if (isSameDay) {
-        return res.status(400).json({ message: 'You already checked in today ❌' });
-      }
-    }
-
-    user.Streak.Scan = (user.Streak.Scan || 0) + 1;
-    user.Streak.lastScan = user.Streak.CurrentScan || null;
-    user.Streak.CurrentScan = now;
-
-    if (user.ActiveChallenge && user.ActiveChallenge.length > 0) {
-      for (let entry of user.ActiveChallenge) {
-        const challenge = entry.challengeId;
-
-        if (challenge && challenge.Challenge_Type === 'Non-Proof') {
-          entry.ChallengeScan = (entry.ChallengeScan || 0) + 1;
-          const duration = challenge.Duration || 1;
-          const progress = Math.floor((entry.ChallengeScan / duration) * 100);
-          entry.Progress = Math.min(progress, 100);
-        }
-      }
-    }
-
-    const alreadyLogged = user.WorkoutLog.some(log => {
-      const logDate = new Date(log.date);
-      return (
-        logDate.getDate() === today.getDate() &&
-        logDate.getMonth() === today.getMonth() &&
-        logDate.getFullYear() === today.getFullYear()
-      );
-    });
-
-    if (!alreadyLogged) {
-      user.WorkoutLog.push({ date: now, scanned: true });
-    }
-
-    user.FitCoins += 5;
-    user.Points += 10;
-    await user.save();
-
-    return res.status(200).json({ message: 'Streak maintained, progress updated, and workout logged 🎉' });
-
-  } catch (err) {
-    console.error("Server error:", err);
-    return res.status(500).json({ error: 'Failed to process QR data' });
-  }
 });
 
 router.get('/Active-Challenges', isloggedin, async (req, res) => {
@@ -162,15 +77,220 @@ router.get('/Active-Challenges', isloggedin, async (req, res) => {
 });
 
 router.post("/save-push-token", isloggedin, async (req, res) => {
-  const { expoPushToken } = req.body;
-  console.log(expoPushToken);
+  try{
+    const { expoPushToken } = req.body;
+    const user = await Usermongo.findById(req.user.id);
+    user.NotificationToken = expoPushToken;
+    await user.save();
+
+    res.json({ message: "Success" });
+  }catch(error){
+    console.log(error);
+  }
 });
 
 router.get("/Gym-Location", isloggedin, async (req, res) => {
-  const user = await Usermongo.findById(req.user.id);
-  const Location = user.Location;
+  try {
+    const user = await Usermongo.findById(req.user.id);
+    const LocationData = user.Location;
 
-  res.json(Location);
+    if (LocationData && 
+        LocationData.latitude !== undefined && 
+        LocationData.longitude !== undefined &&
+        LocationData.latitude !== null && 
+        LocationData.longitude !== null) {
+      console.log("Returning valid location data");
+      res.json({
+        latitude: LocationData.latitude,
+        longitude: LocationData.longitude,
+        timestamp: LocationData.timestamp
+      });
+    } else {
+      console.log("Returning null - no valid location data");
+      res.json(null);
+    }
+  } catch (error) {
+    console.error("Error fetching gym location:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
+
+router.get("/check-daily-checkin", isloggedin, async (req, res) => {
+  try {
+    const user = await Usermongo.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
+    }
+
+    const currentTrack = user.Streak.CurrentTrack;
+    let alreadyCheckedIn = false;
+    let lastCheckinDate = null;
+
+    if (currentTrack) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const lastCheckin = new Date(currentTrack);
+      const isSameDay =
+        lastCheckin.getDate() === today.getDate() &&
+        lastCheckin.getMonth() === today.getMonth() &&
+        lastCheckin.getFullYear() === today.getFullYear();
+
+      alreadyCheckedIn = isSameDay;
+      lastCheckinDate = currentTrack;
+    }
+
+    res.json({
+      alreadyCheckedIn,
+      lastCheckinDate,
+      message: alreadyCheckedIn ? "You already checked in today ✅" : "You haven't checked in today"
+    });
+
+  } catch (error) {
+    console.error("check-daily-checkin error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error checking daily checkin status" 
+    });
+  }
+});
+
+router.post("/save-gym-location", isloggedin, async (req, res) => {
+  try {
+
+    const { latitude, longitude, timestamp } = req.body;
+
+    if (latitude === undefined || longitude === undefined) {
+      console.log('Missing coordinates - latitude:', latitude, 'longitude:', longitude);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Latitude and longitude are required",
+        received: req.body
+      });
+    }
+
+    const user = await Usermongo.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "User not found" 
+      });
+    }
+
+    user.Location = {
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude)
+    };
+
+    console.log('Saving user location:', user.Location);
+
+    // Validate the user document before saving
+    const validationError = user.validateSync();
+    if (validationError) {
+      console.log('Validation error:', validationError);
+      return res.status(400).json({ 
+        success: false, 
+        message: "Validation failed",
+        errors: validationError.errors 
+      });
+    }
+
+    await user.save();
+    
+    console.log('Location saved successfully');
+    res.json({ 
+      success: true, 
+      message: "Gym location saved successfully",
+      location: user.Location 
+    });
+    
+  } catch (error) {
+    console.error('Save location error:', error);
+    
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => ({
+        field: err.path,
+        message: err.message
+      }));
+      return res.status(400).json({ 
+        success: false, 
+        message: "Validation error", 
+        errors 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: "Error saving location", 
+      error: error.message 
+    });
+  }
+});
+
+router.post("/verify-gym-location", isloggedin, async (req, res) => {
+  try {
+    const { verified, timestamp } = req.body;
+
+    if (!verified) {
+      return res.json({ success: false, message: "Location not verified ❌" });
+    }
+
+    const user = await Usermongo.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const now = new Date(timestamp || Date.now());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const currentTrack = user.Streak.CurrentTrack;
+    if (currentTrack) {
+      const last = new Date(currentTrack);
+      const isSameDay =
+        last.getDate() === today.getDate() &&
+        last.getMonth() === today.getMonth() &&
+        last.getFullYear() === today.getFullYear();
+
+      if (isSameDay) {
+        return res.status(400).json({ success: false, message: "You already checked in today ❌" });
+      }
+    }
+
+    // update streak
+    user.Streak.Track = (user.Streak.Track || 0) + 1;
+    user.Streak.lastScan = user.Streak.CurrentTrack || null;
+    user.Streak.CurrentTrack = now;
+
+    // add to workout log if not already logged
+    const alreadyLogged = user.WorkoutLog.some(log => {
+      const logDate = new Date(log.date);
+      return (
+        logDate.getDate() === today.getDate() &&
+        logDate.getMonth() === today.getMonth() &&
+        logDate.getFullYear() === today.getFullYear()
+      );
+    });
+
+    if (!alreadyLogged) {
+      user.WorkoutLog.push({ date: now, scanned: true });
+    }
+
+    // rewards
+    user.FitCoins += 5;
+    user.Points += 10;
+    const badgeData = await UserBadge(user.id);
+
+    await user.save();
+
+    res.json({ success: true, message: "Streak maintained, progress updated, and workout logged 🎉" });
+
+  } catch (error) {
+    console.error("verify-gym-location error:", error);
+    res.status(500).json({ success: false, message: "Error verifying location" });
+  }
+});
+
 
 module.exports = router;

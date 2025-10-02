@@ -8,28 +8,28 @@ const Postmongo = require('../models/post-mongo');
 const Challengemongo = require('../models/Challenge-mongo');
 const isloggedin = require('../middleware/isloggein');
 const Proofmongo = require('../models/Proofmongo');
+require('dotenv').config();
 
 cloudinary.config({
-    cloud_name: "deb6oiddj",
-    api_key: "154685345461446",
-    api_secret: "TSCdCqGFzoblknGCffFTtYcyE8Y",
+    cloud_name: process.env.cloud_name,
+    api_key: process.env.api_key,
+    api_secret: process.env.api_secret,
 });
 
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: async (req, file) => {
-        // Allow images and videos
         const allowedTypes = ["image", "video"];
-        const fileType = file.mimetype.split("/")[0]; // 'image' or 'video'
+        const fileType = file.mimetype.split("/")[0];
         if (!allowedTypes.includes(fileType)) {
             throw new Error("Only image and video files are allowed!");
         }
 
         return {
-            folder: "uploads", // Cloudinary folder
-            format: file.mimetype.split("/")[1], // jpg, png, mp4, etc
+            folder: "uploads",
+            format: file.mimetype.split("/")[1],
             public_id: file.originalname.split(".")[0],
-            resource_type: fileType, // important for videos
+            resource_type: fileType,
         };
     },
 });
@@ -39,7 +39,7 @@ const upload = multer({
     fileFilter: (req, file, cb) => {
         const fileType = file.mimetype.split("/")[0];
         if (fileType === "image" || fileType === "video") {
-            cb(null, true); // Accept image or video
+            cb(null, true);
         } else {
             cb(new Error("Only images and videos are allowed"), false);
         }
@@ -61,7 +61,23 @@ router.get('/', isloggedin, async (req, res) => {
             
             const completedChallenge = user.ChallengesCompleted.find(cc => 
                 cc.challengeId && cc.challengeId._id.equals(challenge._id));
-            
+
+            let progress = 0;
+            let startDate = null;
+            let endDate = null;
+
+            if (activeChallenge) {
+                startDate = activeChallenge.startDate;
+                endDate = activeChallenge.endDate;
+
+                if (startDate && endDate) {
+                    const now = new Date();
+                    const totalDuration = new Date(endDate) - new Date(startDate);
+                    const elapsed = now - new Date(startDate);
+                    progress = Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100); // Clamp 0-100%
+                }
+            }
+
             return {
                 _id: challenge._id,
                 Title: challenge.Title,
@@ -70,11 +86,11 @@ router.get('/', isloggedin, async (req, res) => {
                 Description: challenge.Description,
                 Status: challenge.Status || false,
                 isParticipating: !!activeChallenge,
-                progress: activeChallenge ? activeChallenge.Progress : 0,
+                progress: progress,
                 isCompleted: !!completedChallenge,
                 completionStatus: completedChallenge ? completedChallenge.Status : null,
-                startDate: activeChallenge ? activeChallenge.startDate : null,
-                endDate: activeChallenge ? activeChallenge.endDate : null
+                startDate: startDate,
+                endDate: endDate
             };
         });
 
@@ -167,19 +183,18 @@ router.post('/:id/join', isloggedin, async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Check if user is already a participant
         const isParticipant = challenge.Participants.some(participant => participant.UserId.toString() === userId);
         if (isParticipant) {
             return res.status(400).json({ error: 'You are already a participant in this challenge' });
         }
-        // Add user to challenge participants
+
         user.ActiveChallenge.push({
             challengeId: challenge._id,
             startDate: new Date(),
             endDate,
         });
 
-        user.Points += 7; // Award 10 points for joining a challenge
+        user.Points += 3;
         challenge.Participants.push({ UserId: userId });
         await challenge.save();
         await user.save();
@@ -252,6 +267,7 @@ router.post('/submit-proof', upload.single('proofData'), isloggedin, async (req,
 
     const { challengeId, submissionDate } = req.body;
 
+    // Create proof document (in memory)
     const proof = new Proofmongo({
       challengeId,
       userId: req.user._id,
@@ -260,20 +276,14 @@ router.post('/submit-proof', upload.single('proofData'), isloggedin, async (req,
       Status: 'Pending'
     });
 
-    const user = await Usermongo.findById(req.user._id);
-
-    const activeChallenge = user.ActiveChallenge.find(
-    (ac) => ac.challengeId.toString() === challengeId
-    );
-
-    if (activeChallenge) {
-    activeChallenge.Proof = proof._id;
-    await user.save();
-    }
-
-
+    // Save proof first
     await proof.save();
 
+    // Directly update user's ActiveChallenge with the new proof ID
+    await Usermongo.updateOne(
+      { _id: req.user._id, 'ActiveChallenge.challengeId': challengeId },
+      { $set: { 'ActiveChallenge.$.Proof': proof._id } }
+    );
 
     res.status(200).json({ 
       success: true, 
@@ -285,7 +295,6 @@ router.post('/submit-proof', upload.single('proofData'), isloggedin, async (req,
     res.status(500).json({ success: false, message: 'Error submitting proof' });
   }
 });
-
 router.get('/Proof-Status/:id', isloggedin, async (req, res) => {
   try {
     const challengeId = req.params.id;
@@ -296,62 +305,74 @@ router.get('/Proof-Status/:id', isloggedin, async (req, res) => {
     );
 
     let status;
-    let dateOnly = null;
+    let lastSubmissionDate = null;
 
     if (activeChallenge?.Proof?.submissionDate) {
       const dateObj = new Date(activeChallenge.Proof.submissionDate);
       if (!isNaN(dateObj)) {
-        dateOnly = dateObj.toISOString().split('T')[0];
+        lastSubmissionDate = activeChallenge.Proof.submissionDate;
       }
     }
 
     const today = new Date().toISOString().split('T')[0];
+    const submissionDate = lastSubmissionDate ? new Date(lastSubmissionDate).toISOString().split('T')[0] : null;
 
-    if (dateOnly === today && activeChallenge?.Proof?.Status === 'Pending') {
+    if (submissionDate === today) {
+      // Submission was today → show its actual status
       status = activeChallenge.Proof.Status;
-
-    } else if (activeChallenge?.Proof?.Status === 'Approve') {
-      status = activeChallenge.Proof.Status;
-
-    } else if (activeChallenge?.Proof?.Status === 'Reject') {
-      status = activeChallenge.Proof.Status;
-
     } else {
+      // Submission was not today → reset status
       status = 'To-be-submitted';
     }
 
-    res.json({ status });
+    res.json({ 
+      status,
+      lastSubmissionDate 
+    });
   } catch (error) {
     console.error('Error fetching proofs:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
+
 router.get('/check-challenge-result/:id', isloggedin, async (req, res) => {
   try {
     const userId = req.user.id;
+    const challengeId = req.params.id;
 
-    const challenge = await Challengemongo.findById(req.params.id);
+    const user = await Usermongo.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    let Status;
-
-    const isWinner = challenge.ChallengeWinners.some(
-      entry => entry.UserId.toString() === userId
+    const challengeEntry = user.ActiveChallenge.find(
+      c => c.challengeId.toString() === challengeId
     );
+    if (!challengeEntry) return res.json({ Status: 'Pending' });
 
-    const isLoser = challenge.ChallengeLosers.some(
-      entry => entry.UserId.toString() === userId
-    );
+    const challenge = await Challengemongo.findById(challengeId);
+    if (!challenge) return res.status(404).json({ error: 'Challenge not found' });
 
-    if (isWinner) {
-      Status = 'Won';
-    } else if (isLoser) {
-      Status = 'Lose';
-    } else {
-      Status = 'Pending';
+    const now = new Date();
+    const endDate = challengeEntry.endDate;
+
+    // If challenge not yet ended, always show Pending
+    if (now < endDate) {
+      return res.json({ Status: 'Pending' });
     }
-    console.log(status);
 
+    // Challenge has ended — evaluate result
+    const duration = challenge.Duration || 1;
+    const scanCount = challengeEntry.ChallengeScan || 0;
+
+    let Status = 'Lose'; // Default to lose
+
+    if (challenge.Challenge_Type === 'Non-Proof') {
+      if (scanCount >= duration) Status = 'Won';
+    } else if (challenge.Challenge_Type === 'Proof') {
+      if (scanCount >= duration) Status = 'Won';
+    }
+
+    console.log(Status);
     res.json({ Status });
   } catch (error) {
     console.error('Error checking challenge result:', error);

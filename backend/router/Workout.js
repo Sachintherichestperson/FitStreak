@@ -44,7 +44,6 @@ router.post("/Add/workouts", isloggedin, async (req, res) => {
     const newExercise = { name, sets, reps, weight, notes };
 
     if (!workout) {
-      // first time: create workout doc
       workout = new Workoutmongo({
         user: userId,
         days: [{ day: formattedDay, title, exercises: [newExercise] }]
@@ -55,7 +54,6 @@ router.post("/Add/workouts", isloggedin, async (req, res) => {
       if (!dayObj) {
         workout.days.push({ day: formattedDay, title, exercises: [newExercise] });
       } else {
-        // update title (if trainer changes it later)
         dayObj.title = title;
         dayObj.exercises.push(newExercise);
       }
