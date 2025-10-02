@@ -69,6 +69,9 @@ router.get("/today", isloggedin, async (req, res) => {
       Target: diet.kcalGoal,
       day: todayData.day,
       totalCalories: todayData.totalCalories,
+      totalProtein: todayData.totalProtein || 0,
+      totalCarbs: todayData.totalCarbs || 0, 
+      totalFat: todayData.totalFat || 0,
       meals: enabledMeals.map(meal => ({
         id: meal.id,
         name: meal.name,
@@ -79,7 +82,7 @@ router.get("/today", isloggedin, async (req, res) => {
         totalCarbs: meal.totalCarbs,
         totalFat: meal.totalFat,
         foods: meal.foods.map(food => ({
-          id: food._id ? food._id.toString() : `food-${Date.now()}`,
+          id: food._id ? food._id.toString() : food.id || `food-${Date.now()}`,
           name: food.name,
           portion: food.portion,
           calories: food.calories,
@@ -87,13 +90,7 @@ router.get("/today", isloggedin, async (req, res) => {
           carbs: food.carbs,
           fat: food.fat
         }))
-      })),
-      progress: {
-        calories: 0,
-        protein: 0,
-        carbs: 0,
-        fat: 0
-      }
+      }))
     };
 
     res.status(200).json(response);
@@ -125,7 +122,6 @@ async function calculateTodaysProgress(userId, day) {
 
 router.get("/get-diet", isloggedin, async (req, res) => {
   try {
-    console.log("Hello")
     const userId = req.user.id;
     
     const diet = await Dietmongo.findOne({ userId: userId });
@@ -138,7 +134,6 @@ router.get("/get-diet", isloggedin, async (req, res) => {
       });
     }
 
-    console.log(diet);
     res.status(200).json({ 
       success: true, 
       diet 
@@ -152,6 +147,7 @@ router.get("/get-diet", isloggedin, async (req, res) => {
 
 router.post("/setup", isloggedin, async (req, res) => {
   try {
+    console.log("Received diet data:", JSON.stringify(req.body, null, 2));
     const { kcalGoal, isSameForAllDays, days } = req.body;
     
     const userId = req.user.id;
@@ -160,6 +156,7 @@ router.post("/setup", isloggedin, async (req, res) => {
       return res.status(400).json({ success: false, error: "UserId and calorie goal required" });
     }
 
+    // Validate required days
     const requiredDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     for (const day of requiredDays) {
       if (!days[day]) {
@@ -174,44 +171,99 @@ router.post("/setup", isloggedin, async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
+    // Process and validate the incoming data
+    const processedDays = {};
+    
+    requiredDays.forEach(dayId => {
+      const dayData = days[dayId];
+      if (dayData) {
+        // Initialize day totals
+        let dayTotalCalories = 0;
+        let dayTotalProtein = 0;
+        let dayTotalCarbs = 0;
+        let dayTotalFat = 0;
+
+        // Process each meal
+        const processedMeals = dayData.meals.map(meal => {
+          if (meal.enabled) {
+            // Initialize meal totals
+            let mealTotalCalories = 0;
+            let mealTotalProtein = 0;
+            let mealTotalCarbs = 0;
+            let mealTotalFat = 0;
+
+            // Process each food item and calculate meal totals
+            const processedFoods = meal.foods.map(food => {
+              const foodCalories = Number(food.calories) || 0;
+              const foodProtein = Number(food.protein) || 0;
+              const foodCarbs = Number(food.carbs) || 0;
+              const foodFat = Number(food.fat) || 0;
+
+              // Add to meal totals
+              mealTotalCalories += foodCalories;
+              mealTotalProtein += foodProtein;
+              mealTotalCarbs += foodCarbs;
+              mealTotalFat += foodFat;
+
+              return {
+                name: food.name || '',
+                portion: food.portion || '1 serving',
+                calories: foodCalories,
+                protein: foodProtein,
+                carbs: foodCarbs,
+                fat: foodFat
+              };
+            });
+
+            // Add to day totals
+            dayTotalCalories += mealTotalCalories;
+            dayTotalProtein += mealTotalProtein;
+            dayTotalCarbs += mealTotalCarbs;
+            dayTotalFat += mealTotalFat;
+
+            return {
+              id: meal.id,
+              name: meal.name,
+              time: meal.time,
+              isCustom: meal.isCustom || false,
+              enabled: meal.enabled,
+              foods: processedFoods,
+              totalCalories: mealTotalCalories,
+              totalProtein: mealTotalProtein,
+              totalCarbs: mealTotalCarbs,
+              totalFat: mealTotalFat
+            };
+          }
+          return meal; // Return disabled meals as-is
+        });
+
+        processedDays[dayId] = {
+          day: dayData.day,
+          enabled: dayData.enabled,
+          meals: processedMeals,
+          totalCalories: dayTotalCalories,
+          totalProtein: dayTotalProtein,
+          totalCarbs: dayTotalCarbs,
+          totalFat: dayTotalFat
+        };
+      }
+    });
+
     if (diet) {
+      // Update existing diet
       diet.kcalGoal = kcalGoal;
       diet.isSameForAllDays = isSameForAllDays;
-      diet.days = days;
+      diet.days = processedDays;
       diet.updatedAt = new Date();
     } else {
+      // Create new diet
       diet = new Dietmongo({
         userId: userId,
         kcalGoal: kcalGoal,
         isSameForAllDays: isSameForAllDays,
-        days: days
+        days: processedDays
       });
     }
-
-    requiredDays.forEach(dayId => {
-      const day = diet.days[dayId];
-      if (day && day.enabled) {
-        day.totalCalories = 0;
-        
-        day.meals.forEach(meal => {
-          if (meal.enabled) {
-            meal.totalCalories = 0;
-            meal.totalProtein = 0;
-            meal.totalCarbs = 0;
-            meal.totalFat = 0;
-            
-            meal.foods.forEach(food => {
-              meal.totalCalories += food.calories || 0;
-              meal.totalProtein += food.protein || 0;
-              meal.totalCarbs += food.carbs || 0;
-              meal.totalFat += food.fat || 0;
-            });
-            
-            day.totalCalories += meal.totalCalories;
-          }
-        });
-      }
-    });
 
     await diet.save();
 
@@ -234,11 +286,14 @@ router.post("/setup", isloggedin, async (req, res) => {
       return res.status(401).json({ success: false, error: "Invalid token" });
     }
     
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ success: false, error: error.message });
+    }
+    
     res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
-// Helper function to assign meal times
 function getMealTime(mealType) {
   switch(mealType) {
     case 'breakfast': return '8:00 AM';

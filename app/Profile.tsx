@@ -1,8 +1,8 @@
 import { Feather, FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -331,25 +331,24 @@ const FitStreakProfile = () => {
   };
 
   const pickImage = async () => {
-    // Request permissions
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Sorry, we need camera roll permissions to make this work!');
-      return;
-    }
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') {
+    Alert.alert('Sorry, we need camera roll permissions to make this work!');
+    return;
+  }
 
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      aspect: undefined,
-      quality: 0.8,
-      allowsMultipleSelection: false,
-    });
+  let result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true, // prevents cropping
+    quality: 0.5,           // maximum quality, preserves original size
+    allowsMultipleSelection: false,
+  });
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setPostImage(result.assets[0].uri);
-    }
-  };
+  if (!result.canceled && result.assets && result.assets.length > 0) {
+    setPostImage(result.assets[0].uri);
+  }
+};
+
 
   const removeImage = () => {
     setPostImage(null);
@@ -493,13 +492,6 @@ const FitStreakProfile = () => {
       Alert.alert('Error', 'Failed to submit comment');
     }
   };
-
-  const settingsItems = [
-    { icon: 'user', name: 'Account Settings' },
-    { icon: 'bell', name: 'Notifications' },
-    { icon: 'paint-brush', name: 'Appearance' },
-    { icon: 'shield', name: 'Privacy & Security' },
-  ];
 
   const renderPostItem = ({ item }: { item: AnonymousPost }) => (
     <View style={styles.postCard}>
@@ -710,7 +702,7 @@ const FitStreakProfile = () => {
         </View>
 
         {/* Wallet Section */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Wallet</Text>
           </View>
@@ -718,13 +710,12 @@ const FitStreakProfile = () => {
           <View style={styles.card}>
             <Text style={styles.walletBalance}>{fitCoins.toLocaleString()} FitCoins </Text>
             <View style={styles.walletActions}>
-              {/* Wallet actions can be added here */}
             </View>
           </View>
-        </View>
+        </View> */}
 
         {/* Buddy Section */}
-        {buddy && (
+        {/* {buddy && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Workout Buddy</Text>
@@ -764,10 +755,10 @@ const FitStreakProfile = () => {
               </View>
             </View>
           </View>
-        )}
+        )} */}
 
         {/* Add Buddy Section if no buddy exists */}
-        {!buddy && (
+        {/* {!buddy && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Workout Buddy</Text>
@@ -789,14 +780,14 @@ const FitStreakProfile = () => {
               </View>
             </View>
           </View>
-        )}
+        )} */}
 
         {/* Settings Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Settings</Text>
           
           <View style={styles.settingsList}>
-            {settingsItems.map((item, index) => (
+            {/* {settingsItems.map((item, index) => (
               <TouchableOpacity
                 key={index}
                 style={styles.settingsItem}
@@ -808,7 +799,7 @@ const FitStreakProfile = () => {
                 <Text style={styles.settingsText}>{item.name}</Text>
                 <FontAwesome name="chevron-right" size={12} color="#888" />
               </TouchableOpacity>
-            ))}
+            ))} */}
             <TouchableOpacity
               style={styles.settingsItem}
               onPress={handleLogout}
@@ -927,7 +918,7 @@ const FitStreakProfile = () => {
                 <Image
                   source={{ uri: postImage }}
                   style={styles.postImagePreview}
-                  resizeMode="cover"
+                  resizeMode="contain"
                 />
                 <TouchableOpacity 
                   style={styles.removeImageButton}
@@ -1576,14 +1567,14 @@ const styles = StyleSheet.create({
     minHeight: 100,
   },
   postImagePreviewContainer: {
-    marginTop: 20,
+    marginTop: 0,
     borderRadius: 8,
     overflow: 'hidden',
     position: 'relative',
   },
   postImagePreview: {
     width: '100%',
-    height: 200,
+    height: '100%',
   },
   removeImageButton: {
     position: 'absolute',
@@ -1602,6 +1593,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
     borderTopWidth: 1,
+    backgroundColor: '#000000',
     borderTopColor: '#2A2A2A',
   },
   postActionButton: {

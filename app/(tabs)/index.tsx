@@ -5,16 +5,16 @@ import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  FlatList,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 
@@ -46,6 +46,20 @@ const FitPulseApp = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [todayPlan, setTodayPlan] = useState<{
+  workout: {
+    title: string;
+    exerciseCount: number;
+    totalTime: number;
+    targetTime: string;
+  } | null;
+  diet: {
+    description: string;
+    calories: number;
+    protein: number;
+    targetTime: string;
+  } | null;
+}>({ workout: null, diet: null });
 
   Animated.loop(
     Animated.sequence([
@@ -122,26 +136,28 @@ const FitPulseApp = () => {
   }
 };
 
-  const scheduleDailyReminder = async () => {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    
-    const trigger = {
-      type: 'daily',
-      hour: 18,
-      minute: 0,
-      repeats: true,
-    };
-    
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "Time for your workout! 💪",
-        body: "Don't break your streak! Log your workout today.",
-        sound: true,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
+const fetchTodayPlan = async () => {
+  try {
+    const token = await AsyncStorage.getItem('Token');
+    const response = await fetch('http://192.168.29.104:3000/Home/plan', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
-      trigger,
     });
-  };
+    const data = await response.json();
+    
+    if (data.success) {
+      setTodayPlan({
+        workout: data.workout,
+        diet: data.diet
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching today\'s plan:', error);
+  }
+}
 
   const fetchBackendData = async () => {
     try {
@@ -202,7 +218,7 @@ const FitPulseApp = () => {
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
-    Promise.all([fetchDailyMotivation(), BackendData(), fetchBackendData()])
+    Promise.all([fetchDailyMotivation(), BackendData(), fetchBackendData(), fetchTodayPlan()])
       .then(() => setRefreshing(false))
       .catch(() => setRefreshing(false));
   }, []);
@@ -214,7 +230,8 @@ const FitPulseApp = () => {
         await Promise.all([
           fetchBackendData(),
           BackendData(),
-          fetchDailyMotivation()
+          fetchDailyMotivation(),
+          fetchTodayPlan()
         ]);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -226,7 +243,6 @@ const FitPulseApp = () => {
     loadData();
 
     registerForPushNotificationsAsync();
-    scheduleDailyReminder();
 
     return () => {
     };
@@ -538,34 +554,52 @@ const FitPulseApp = () => {
         </View>
 
         {/* Today's Plan */}
-        <Text style={styles.sectionTitle}>Today&apos;s Plan</Text>
-        <View style={styles.todayPlanContainer}>
-          <TouchableOpacity 
-            style={styles.planCard}
-            onPress={() => router.push('/Workout')}
-          >
-            <View style={styles.planHeader}>
-              <FontAwesome5 name="dumbbell" size={20} color="#00f5ff" />
-              <Text style={styles.planTitle}>Workout</Text>
-            </View>
-            <Text style={styles.planDescription}>Chest & Triceps</Text>
-            <Text style={styles.planDetail}>4 exercises • 45 mins</Text>
-            <Text style={styles.planTime}>6:00 PM</Text>
-          </TouchableOpacity>
+<Text style={styles.sectionTitle}>Today&apos;s Plan</Text>
+<View style={styles.todayPlanContainer}>
+  <TouchableOpacity 
+    style={styles.planCard}
+    onPress={() => router.push('/Workout')}
+  >
+    <View style={styles.planHeader}>
+      <FontAwesome5 name="dumbbell" size={20} color="#00f5ff" />
+      <Text style={styles.planTitle}>Workout</Text>
+    </View>
+    <Text style={styles.planDescription}>
+      {todayPlan.workout ? todayPlan.workout.title : "No workout scheduled"}
+    </Text>
+    <Text style={styles.planDetail}>
+      {todayPlan.workout 
+        ? `${todayPlan.workout.exerciseCount} exercises • ${todayPlan.workout.totalTime} mins`
+        : "Add your workout plan"
+      }
+    </Text>
+    <Text style={styles.planTime}>
+      {todayPlan.workout ? todayPlan.workout.targetTime : "Schedule workout"}
+    </Text>
+  </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.planCard}
-            onPress={() => router.push('/Diet')}
-          >
-            <View style={styles.planHeader}>
-              <FontAwesome5 name="utensils" size={18} color="#00ff9d" />
-              <Text style={styles.planTitle}>Diet</Text>
-            </View>
-            <Text style={styles.planDescription}>High Protein Meal</Text>
-            <Text style={styles.planDetail}>1800 calories • 120g protein</Text>
-            <Text style={styles.planTime}>Track your meals</Text>
-          </TouchableOpacity>
-        </View>
+  <TouchableOpacity 
+    style={styles.planCard}
+    onPress={() => router.push('/Diet')}
+  >
+    <View style={styles.planHeader}>
+      <FontAwesome5 name="utensils" size={18} color="#00ff9d" />
+      <Text style={styles.planTitle}>Diet</Text>
+    </View>
+    <Text style={styles.planDescription}>
+      {todayPlan.diet ? todayPlan.diet.description : "No diet plan"}
+    </Text>
+    <Text style={styles.planDetail}>
+      {todayPlan.diet 
+        ? `${todayPlan.diet.calories} calories • ${todayPlan.diet.protein}g protein`
+        : "Set up your diet plan"
+      }
+    </Text>
+    <Text style={styles.planTime}>
+      {todayPlan.diet ? todayPlan.diet.targetTime : "Plan your meals"}
+    </Text>
+  </TouchableOpacity>
+</View>
 
         <View style={styles.streakHeader}>
           <View style={styles.streakInfo}>

@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
-const sendNotification = require("./functions/Notification");
+const { sendNotification } = require("./functions/Notification");
 require('dotenv').config();
 
 //functions
@@ -118,7 +118,7 @@ app.post('/register', async (req, res) => {
       await matchedGym.save();
     }
 
-    await user.save();
+    
 
     const token = jwt.sign(
       { id: user._id },
@@ -141,6 +141,8 @@ app.post('/register', async (req, res) => {
       "Thanks for joining! Let's start your fitness journey.", // body
       data
     );
+
+    await user.save();
 
     res.status(201).json({
       message: 'Registered successfully',

@@ -26,7 +26,10 @@ const daySchema = new mongoose.Schema({
   day: { type: String, required: true },
   enabled: { type: Boolean, default: true },
   meals: [mealSchema],
-  totalCalories: { type: Number, default: 0 }
+  totalCalories: { type: Number, default: 0 },
+  totalProtein: { type: Number, default: 0 },
+  totalCarbs: { type: Number, default: 0 },
+  totalFat: { type: Number, default: 0 }
 });
 
 const dietPlanSchema = new mongoose.Schema({

@@ -259,6 +259,11 @@ const LocationScanner = () => {
     const sendLocationVerification = async (): Promise<{success: boolean; message?: string}> => {
         try {
             const token = await AsyncStorage.getItem('Token');
+
+            const now = new Date();
+            const istOffset = 5.5 * 60; // 5 hours 30 minutes in minutes
+            const istTime = new Date(now.getTime() + istOffset * 60 * 1000);
+
             const response = await fetch('http://192.168.29.104:3000/Home/verify-gym-location', {
                 method: 'POST',
                 headers: {
@@ -267,7 +272,7 @@ const LocationScanner = () => {
                 },
                 body: JSON.stringify({
                     verified: true,
-                    timestamp: new Date().toISOString(),
+                    timestamp: istTime.toISOString(),
                 }),
             });
 

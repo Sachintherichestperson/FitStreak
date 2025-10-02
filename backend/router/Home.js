@@ -7,6 +7,8 @@ const isloggedin = require('../middleware/isloggein');
 const Gymmongo = require('../models/Gymmongo');
 const UserBadge = require("../functions/UserBadge");
 const Streakfunction = require('../functions/Streak');
+const Workoutmongo = require("../models/Workoutmongo");
+const Dietmongo = require("../models/Dietmongo");
 
 router.get('/', isloggedin, async (req, res) => {
     const user = await Usermongo.findOne({ _id: req.user._id })
@@ -29,6 +31,97 @@ router.get('/', isloggedin, async (req, res) => {
         Status
     });
 });
+
+router.get('/plan',isloggedin, async (req, res) => {
+  try {
+    const userId = req.user.id; // Assuming you have auth middleware that sets req.user
+    const today = new Date();
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const todayDayName = dayNames[today.getDay()];
+
+    // Fetch user's workout plan
+    const workoutPlan = await Workoutmongo.findOne({ user: userId });
+    
+    // Find today's workout
+    let todayWorkout = null;
+    if (workoutPlan && workoutPlan.days) {
+      todayWorkout = workoutPlan.days.find(day => day.day === todayDayName);
+    }
+
+    // Fetch user's diet plan
+    const dietPlan = await Dietmongo.findOne({ userId: userId });
+    
+    // Get today's diet
+    let todayDiet = null;
+    let totalCalories = 0;
+    let totalProtein = 0;
+
+    if (dietPlan) {
+      const dayField = todayDayName.toLowerCase();
+      todayDiet = dietPlan.days[dayField];
+      console.log(todayDiet)
+      
+      if (todayDiet && todayDiet.enabled) {
+        totalCalories = todayDiet.totalCalories || 0;
+        
+        // Calculate total protein from all meals
+        if (todayDiet.meals) {
+          todayDiet.meals.forEach(meal => {
+            if (meal.enabled) {
+              totalProtein += meal.totalProtein || 0;
+            }
+          });
+        }
+      }
+    }
+
+    // Format workout data
+    const workoutData = todayWorkout ? {
+      title: todayWorkout.title,
+      exerciseCount: todayWorkout.exercises ? todayWorkout.exercises.length : 0,
+      totalTime: calculateWorkoutTime(todayWorkout.exercises),
+      targetTime: "6:00 PM" // You can make this dynamic based on user preferences
+    } : null;
+
+    // Format diet data
+    const dietData = todayDiet ? {
+      description: getDietDescription(totalCalories),
+      calories: totalCalories,
+      protein: Math.round(totalProtein),
+      targetTime: "Track your meals"
+    } : null;
+
+    // console.log(dietData)
+
+    res.json({
+      success: true,
+      workout: workoutData,
+      diet: dietData
+    });
+
+  } catch (error) {
+    console.error('Error fetching user plan:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching plan data'
+    });
+  }
+});
+
+// Helper function to calculate workout time (approx 5 minutes per exercise)
+function calculateWorkoutTime(exercises) {
+  if (!exercises) return 0;
+  const totalExercises = exercises.length;
+  return Math.round(totalExercises * 5); // 5 minutes per exercise
+}
+
+// Helper function to generate diet description
+function getDietDescription(calories) {
+  if (calories < 1500) return "Low Calorie Meal";
+  if (calories < 2000) return "Balanced Meal";
+  if (calories < 2500) return "High Protein Meal";
+  return "High Calorie Meal";
+}
 
 router.get('/Active-Challenges', isloggedin, async (req, res) => {
     try {
@@ -258,14 +351,12 @@ router.post("/verify-gym-location", isloggedin, async (req, res) => {
       }
     }
 
-    // update streak
     user.Streak.Track = (user.Streak.Track || 0) + 1;
     user.Streak.lastScan = user.Streak.CurrentTrack || null;
     user.Streak.CurrentTrack = now;
 
-    // add to workout log if not already logged
     const alreadyLogged = user.WorkoutLog.some(log => {
-      const logDate = new Date(log.date);
+      const logDate = new Date(timestamp);
       return (
         logDate.getDate() === today.getDate() &&
         logDate.getMonth() === today.getMonth() &&

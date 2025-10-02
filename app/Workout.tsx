@@ -89,7 +89,7 @@ const WorkoutPlan = () => {
         
         // Find today's workout
         const currentDay = getCurrentDay();
-        const todayWorkout = data[0].days.find((day: DayWorkout) => day.day === currentDay);
+        const todayWorkout = data[0]?.days.find((day: DayWorkout) => day.day === currentDay);
         
         if (todayWorkout) {
           setCurrentDayWorkout(todayWorkout);

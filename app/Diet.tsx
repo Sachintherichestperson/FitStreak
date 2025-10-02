@@ -54,6 +54,7 @@ const DietPlan = () => {
     let carbsConsumed = 0;
     let fatConsumed = 0;
 
+    // Access meals from dietPlan response
     if (dietPlan?.meals) {
       dietPlan.meals.forEach(meal => {
         if (meal.foods) {
@@ -70,11 +71,11 @@ const DietPlan = () => {
       });
     }
 
-    return {
-      calories: caloriesConsumed,
-      protein: proteinConsumed,
-      carbs: carbsConsumed,
-      fat: fatConsumed
+    return { 
+      calories: Math.round(caloriesConsumed), 
+      protein: Math.round(proteinConsumed), 
+      carbs: Math.round(carbsConsumed), 
+      fat: Math.round(fatConsumed) 
     };
   };
 
@@ -116,7 +117,7 @@ const DietPlan = () => {
         
         // Set the diet plan data
         setDietPlan(data);
-        SetTarget(data.Target || 0);
+        SetTarget(data.kcalGoal || data.Target || 2000); // Fallback to 2000 if not provided
         
         // Load saved completed foods from AsyncStorage
         const today = new Date().toISOString().split('T')[0];
@@ -247,15 +248,18 @@ const DietPlan = () => {
   };
 
   const getMacroGoals = () => {
-    // Calculate macro goals based on calorie target (standard ratios)
-    const proteinRatio = 0.3; // 30% of calories from protein
-    const carbsRatio = 0.5;   // 50% of calories from carbs
-    const fatRatio = 0.2;     // 20% of calories from fat
+    // More realistic macro ratios based on standard nutrition guidelines
+    const proteinRatio = 0.25; // 25% of calories from protein (reduced from 30%)
+    const carbsRatio = 0.50;   // 50% of calories from carbs
+    const fatRatio = 0.25;     // 25% of calories from fat (increased from 20%)
+    
+    // Ensure we have a reasonable target
+    const calorieTarget = Target > 0 ? Target : 2000;
     
     return {
-      protein: Math.round((Target * proteinRatio) / 4), // 4 calories per gram
-      carbs: Math.round((Target * carbsRatio) / 4),     // 4 calories per gram
-      fat: Math.round((Target * fatRatio) / 9)          // 9 calories per gram
+      protein: Math.round((calorieTarget * proteinRatio) / 4), // 4 calories per gram
+      carbs: Math.round((calorieTarget * carbsRatio) / 4),     // 4 calories per gram
+      fat: Math.round((calorieTarget * fatRatio) / 9)          // 9 calories per gram
     };
   };
 
@@ -295,11 +299,11 @@ const DietPlan = () => {
           </View>
           
           <View style={styles.mealStats}>
-            <Text style={styles.mealCalories}>{item.totalCalories} kcal</Text>
+            <Text style={styles.mealCalories}>{Math.round(item.totalCalories)} kcal</Text>
             <View style={styles.mealMacros}>
-              <Text style={styles.macroText}>P: {item.totalProtein}g</Text>
-              <Text style={styles.macroText}>C: {item.totalCarbs}g</Text>
-              <Text style={styles.macroText}>F: {item.totalFat}g</Text>
+              <Text style={styles.macroText}>P: {Math.round(item.totalProtein)}g</Text>
+              <Text style={styles.macroText}>C: {Math.round(item.totalCarbs)}g</Text>
+              <Text style={styles.macroText}>F: {Math.round(item.totalFat)}g</Text>
             </View>
           </View>
           
@@ -319,7 +323,7 @@ const DietPlan = () => {
         </View>
         
         <View style={styles.foodList}>
-          {item.foods.map((food, index) => {
+          {item.foods && item.foods.map((food, index) => {
             const foodId = food.id || `${item.id}-${food.name}`;
             const isFoodCompleted = completedFoods[foodId];
             
@@ -357,12 +361,12 @@ const DietPlan = () => {
                     styles.foodCalories,
                     isFoodCompleted && styles.foodCaloriesCompleted
                   ]}>
-                    {food.calories} kcal
+                    {Math.round(food.calories)} kcal
                   </Text>
                   <View style={styles.foodMacros}>
-                    <Text style={styles.foodMacroText}>P: {food.protein}g</Text>
-                    <Text style={styles.foodMacroText}>C: {food.carbs}g</Text>
-                    <Text style={styles.foodMacroText}>F: {food.fat}g</Text>
+                    <Text style={styles.foodMacroText}>P: {Math.round(food.protein)}g</Text>
+                    <Text style={styles.foodMacroText}>C: {Math.round(food.carbs)}g</Text>
+                    <Text style={styles.foodMacroText}>F: {Math.round(food.fat)}g</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -615,7 +619,7 @@ const DietPlan = () => {
         </View>
         
         <FlatList
-          data={dietPlan.meals}
+          data={dietPlan.meals || []}
           renderItem={renderMeal}
           keyExtractor={item => item.id}
           scrollEnabled={false}

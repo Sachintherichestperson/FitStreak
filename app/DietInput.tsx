@@ -17,16 +17,6 @@ import {
 } from 'react-native';
 
 // Constants
-const DAYS_OF_WEEK = [
-  { id: 'monday', name: 'Monday' },
-  { id: 'tuesday', name: 'Tuesday' },
-  { id: 'wednesday', name: 'Wednesday' },
-  { id: 'thursday', name: 'Thursday' },
-  { id: 'friday', name: 'Friday' },
-  { id: 'saturday', name: 'Saturday' },
-  { id: 'sunday', name: 'Sunday' }
-];
-
 const DEFAULT_MEAL_TYPES = [
   { id: 'breakfast', name: 'Breakfast', time: '08:00', isCustom: false },
   { id: 'lunch', name: 'Lunch', time: '13:00', isCustom: false },
@@ -37,23 +27,23 @@ const API_BASE_URL = 'http://192.168.29.104:3000/Diet';
 
 // Helper functions
 const createInitialDietPlan = () => {
-  return DAYS_OF_WEEK.reduce((acc, day) => {
-    acc[day.id] = {
-      day: day.name,
-      meals: DEFAULT_MEAL_TYPES.map(meal => ({
-        ...meal,
-        foods: [],
-        totalCalories: 0,
-        totalProtein: 0,
-        totalCarbs: 0,
-        totalFat: 0,
-        enabled: true
-      })),
+  return {
+    day: 'Daily Diet',
+    meals: DEFAULT_MEAL_TYPES.map(meal => ({
+      ...meal,
+      foods: [],
       totalCalories: 0,
+      totalProtein: 0,
+      totalCarbs: 0,
+      totalFat: 0,
       enabled: true
-    };
-    return acc;
-  }, {});
+    })),
+    totalCalories: 0,
+    totalProtein: 0,
+    totalCarbs: 0,
+    totalFat: 0,
+    enabled: true
+  };
 };
 
 const validateTimeFormat = (time) => {
@@ -65,11 +55,9 @@ const DietSetup = () => {
   const router = useRouter();
   
   const [kcalGoal, setKcalGoal] = useState('');
-  const [dietPlan, setDietPlan] = useState({});
-  const [isSameForAllDays, setIsSameForAllDays] = useState(true);
+  const [dietPlan, setDietPlan] = useState(createInitialDietPlan());
   const [showAddFoodModal, setShowAddFoodModal] = useState(false);
   const [showAddMealModal, setShowAddMealModal] = useState(false);
-  const [selectedDay, setSelectedDay] = useState('monday');
   const [selectedMeal, setSelectedMeal] = useState('breakfast');
   const [newFood, setNewFood] = useState({
     name: '',
@@ -88,7 +76,6 @@ const DietSetup = () => {
 
   // Initialize diet plan on component mount
   useEffect(() => {
-    setDietPlan(createInitialDietPlan());
     fetchExistingDiet();
   }, []);
 
@@ -114,37 +101,38 @@ const DietSetup = () => {
         if (data.success && data.diet) {
           setHasExistingDiet(true);
           setKcalGoal(data.diet.kcalGoal?.toString() || '');
-          setIsSameForAllDays(data.diet.isSameForAllDays ?? true);
           
           // Safely merge existing diet with default structure
-          const mergedDietPlan = createInitialDietPlan();
-          
-          if (data.diet.days) {
-            Object.keys(data.diet.days).forEach(dayId => {
-              if (mergedDietPlan[dayId] && data.diet.days[dayId]) {
-                const existingDay = data.diet.days[dayId];
-                mergedDietPlan[dayId] = {
-                  ...mergedDietPlan[dayId],
-                  ...existingDay,
-                  meals: existingDay.meals?.map(existingMeal => {
-                    const defaultMeal = mergedDietPlan[dayId].meals.find(m => m.id === existingMeal.id);
-                    return {
-                      ...(defaultMeal || {}),
-                      ...existingMeal,
-                      foods: existingMeal.foods || [],
-                      totalCalories: existingMeal.totalCalories || 0,
-                      totalProtein: existingMeal.totalProtein || 0,
-                      totalCarbs: existingMeal.totalCarbs || 0,
-                      totalFat: existingMeal.totalFat || 0,
-                      enabled: existingMeal.enabled ?? true
-                    };
-                  }) || mergedDietPlan[dayId].meals
+          if (data.diet.days && data.diet.days.monday) {
+            const existingDay = data.diet.days.monday;
+            const mergedDietPlan = {
+              day: 'Daily Diet',
+              enabled: existingDay.enabled ?? true,
+              totalCalories: existingDay.totalCalories || 0,
+              totalProtein: existingDay.totalProtein || 0,
+              totalCarbs: existingDay.totalCarbs || 0,
+              totalFat: existingDay.totalFat || 0,
+              meals: existingDay.meals?.map(existingMeal => {
+                const defaultMeal = DEFAULT_MEAL_TYPES.find(m => m.id === existingMeal.id);
+                return {
+                  ...(defaultMeal || {
+                    id: existingMeal.id,
+                    name: existingMeal.name,
+                    time: existingMeal.time || '08:00',
+                    isCustom: true
+                  }),
+                  ...existingMeal,
+                  foods: existingMeal.foods || [],
+                  totalCalories: existingMeal.totalCalories || 0,
+                  totalProtein: existingMeal.totalProtein || 0,
+                  totalCarbs: existingMeal.totalCarbs || 0,
+                  totalFat: existingMeal.totalFat || 0,
+                  enabled: existingMeal.enabled ?? true
                 };
-              }
-            });
+              }) || createInitialDietPlan().meals
+            };
+            setDietPlan(mergedDietPlan);
           }
-          
-          setDietPlan(mergedDietPlan);
         }
       }
     } catch (error) {
@@ -155,29 +143,23 @@ const DietSetup = () => {
     }
   };
 
-  const toggleDayEnabled = (dayId) => {
+  const toggleDayEnabled = () => {
     setDietPlan(prev => ({
       ...prev,
-      [dayId]: {
-        ...prev[dayId],
-        enabled: !prev[dayId].enabled
-      }
+      enabled: !prev.enabled
     }));
   };
 
-  const toggleMealEnabled = (dayId, mealId) => {
+  const toggleMealEnabled = (mealId) => {
     setDietPlan(prev => ({
       ...prev,
-      [dayId]: {
-        ...prev[dayId],
-        meals: prev[dayId].meals.map(meal =>
-          meal.id === mealId ? { ...meal, enabled: !meal.enabled } : meal
-        )
-      }
+      meals: prev.meals.map(meal =>
+        meal.id === mealId ? { ...meal, enabled: !meal.enabled } : meal
+      )
     }));
   };
 
-  const updateMealTime = (dayId, mealId, time) => {
+  const updateMealTime = (mealId, time) => {
     if (!validateTimeFormat(time) && time !== '') {
       Alert.alert('Invalid Time', 'Please enter time in HH:MM format');
       return;
@@ -185,16 +167,13 @@ const DietSetup = () => {
 
     setDietPlan(prev => ({
       ...prev,
-      [dayId]: {
-        ...prev[dayId],
-        meals: prev[dayId].meals.map(meal =>
-          meal.id === mealId ? { ...meal, time } : meal
-        )
-      }
+      meals: prev.meals.map(meal =>
+        meal.id === mealId ? { ...meal, time } : meal
+      )
     }));
   };
 
-  const addCustomMeal = (dayId) => {
+  const addCustomMeal = () => {
     if (!newMeal.name.trim()) {
       Alert.alert('Error', 'Please enter a meal name');
       return;
@@ -220,17 +199,14 @@ const DietSetup = () => {
 
     setDietPlan(prev => ({
       ...prev,
-      [dayId]: {
-        ...prev[dayId],
-        meals: [...prev[dayId].meals, customMeal]
-      }
+      meals: [...prev.meals, customMeal]
     }));
 
     setNewMeal({ name: '', time: '' });
     setShowAddMealModal(false);
   };
 
-  const removeCustomMeal = (dayId, mealId) => {
+  const removeCustomMeal = (mealId) => {
     Alert.alert(
       'Remove Meal',
       'Are you sure you want to remove this meal?',
@@ -242,10 +218,7 @@ const DietSetup = () => {
           onPress: () => {
             setDietPlan(prev => ({
               ...prev,
-              [dayId]: {
-                ...prev[dayId],
-                meals: prev[dayId].meals.filter(meal => meal.id !== mealId)
-              }
+              meals: prev.meals.filter(meal => meal.id !== mealId)
             }));
           }
         }
@@ -260,79 +233,53 @@ const DietSetup = () => {
       return;
     }
 
-    const calories = parseInt(newFood.calories);
-    const protein = parseInt(newFood.protein);
-    const carbs = parseInt(newFood.carbs);
-    const fat = parseInt(newFood.fat);
+    const calories = parseInt(newFood.calories) || 0;
+    const protein = parseInt(newFood.protein) || 0;
+    const carbs = parseInt(newFood.carbs) || 0;
+    const fat = parseInt(newFood.fat) || 0;
 
-    if (isNaN(calories) || calories < 0) {
-      Alert.alert('Error', 'Please enter valid calories');
-      return;
-    }
-
-    if (isNaN(protein) || protein < 0) {
-      Alert.alert('Error', 'Please enter valid protein amount');
-      return;
-    }
-
-    if (isNaN(carbs) || carbs < 0) {
-      Alert.alert('Error', 'Please enter valid carbs amount');
-      return;
-    }
-
-    if (isNaN(fat) || fat < 0) {
-      Alert.alert('Error', 'Please enter valid fat amount');
-      return;
-    }
-
+    // Create food item with ALL nutritional data
     const foodItem = {
       id: `food-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: newFood.name.trim(),
-      calories,
-      protein,
-      carbs,
-      fat,
+      calories: calories,
+      protein: protein,
+      carbs: carbs,
+      fat: fat,
       portion: newFood.portion.trim() || '1 serving'
     };
 
     setDietPlan(prev => {
-      const updatedPlan = { ...prev };
-      const day = updatedPlan[selectedDay];
-      
-      if (!day) return prev;
-
-      const mealIndex = day.meals.findIndex(meal => meal.id === selectedMeal);
+      const mealIndex = prev.meals.findIndex(meal => meal.id === selectedMeal);
       
       if (mealIndex === -1) return prev;
 
-      const updatedMeals = [...day.meals];
+      const updatedMeals = [...prev.meals];
       const targetMeal = { ...updatedMeals[mealIndex] };
       
       // Add food to meal
       targetMeal.foods = [...targetMeal.foods, foodItem];
       
-      // Update meal totals
-      targetMeal.totalCalories += foodItem.calories;
-      targetMeal.totalProtein += foodItem.protein;
-      targetMeal.totalCarbs += foodItem.carbs;
-      targetMeal.totalFat += foodItem.fat;
+      // Update meal totals - ensure all values are numbers
+      targetMeal.totalCalories = (targetMeal.totalCalories || 0) + calories;
+      targetMeal.totalProtein = (targetMeal.totalProtein || 0) + protein;
+      targetMeal.totalCarbs = (targetMeal.totalCarbs || 0) + carbs;
+      targetMeal.totalFat = (targetMeal.totalFat || 0) + fat;
       
       updatedMeals[mealIndex] = targetMeal;
       
       // Update day total
-      const updatedDay = {
-        ...day,
-        meals: updatedMeals,
-        totalCalories: day.totalCalories + foodItem.calories
-      };
-
       return {
-        ...updatedPlan,
-        [selectedDay]: updatedDay
+        ...prev,
+        meals: updatedMeals,
+        totalCalories: (prev.totalCalories || 0) + calories,
+        totalProtein: (prev.totalProtein || 0) + protein,
+        totalCarbs: (prev.totalCarbs || 0) + carbs,
+        totalFat: (prev.totalFat || 0) + fat
       };
     });
 
-    // Reset form
+    // Reset form and close modal
     setNewFood({
       name: '',
       calories: '',
@@ -344,7 +291,7 @@ const DietSetup = () => {
     setShowAddFoodModal(false);
   };
 
-  const removeFoodFromMeal = (dayId, mealId, foodId) => {
+  const removeFoodFromMeal = (mealId, foodId) => {
     Alert.alert(
       'Remove Food',
       'Are you sure you want to remove this food?',
@@ -355,16 +302,11 @@ const DietSetup = () => {
           style: 'destructive',
           onPress: () => {
             setDietPlan(prev => {
-              const updatedPlan = { ...prev };
-              const day = updatedPlan[dayId];
-              
-              if (!day) return prev;
-
-              const mealIndex = day.meals.findIndex(meal => meal.id === mealId);
+              const mealIndex = prev.meals.findIndex(meal => meal.id === mealId);
               
               if (mealIndex === -1) return prev;
 
-              const updatedMeals = [...day.meals];
+              const updatedMeals = [...prev.meals];
               const targetMeal = { ...updatedMeals[mealIndex] };
               
               const foodIndex = targetMeal.foods.findIndex(food => food.id === foodId);
@@ -385,15 +327,13 @@ const DietSetup = () => {
               updatedMeals[mealIndex] = targetMeal;
               
               // Update day total
-              const updatedDay = {
-                ...day,
-                meals: updatedMeals,
-                totalCalories: Math.max(0, day.totalCalories - foodItem.calories)
-              };
-
               return {
-                ...updatedPlan,
-                [dayId]: updatedDay
+                ...prev,
+                meals: updatedMeals,
+                totalCalories: Math.max(0, prev.totalCalories - foodItem.calories),
+                totalProtein: Math.max(0, prev.totalProtein - foodItem.protein),
+                totalCarbs: Math.max(0, prev.totalCarbs - foodItem.carbs),
+                totalFat: Math.max(0, prev.totalFat - foodItem.fat)
               };
             });
           }
@@ -404,20 +344,9 @@ const DietSetup = () => {
 
   const saveDietPlan = async () => {
     try {
-      // Validation
       const kcalValue = parseInt(kcalGoal);
       if (isNaN(kcalValue) || kcalValue <= 0) {
         Alert.alert('Error', 'Please enter a valid calorie goal');
-        return;
-      }
-
-      // Check if at least one day has meals with food
-      const hasMeals = Object.values(dietPlan).some(day => 
-        day.enabled && day.meals.some(meal => meal.enabled && meal.foods.length > 0)
-      );
-
-      if (!hasMeals) {
-        Alert.alert('Error', 'Please add at least one food item to your diet plan');
         return;
       }
 
@@ -428,23 +357,22 @@ const DietSetup = () => {
         return;
       }
 
+      // Create a clean plan with all necessary data
       const planToSave = {
         kcalGoal: kcalValue,
-        isSameForAllDays,
-        days: Object.entries(dietPlan).reduce((acc, [dayId, dayData]) => {
-          if (dayData.enabled) {
-            acc[dayId] = {
-              ...dayData,
-              meals: dayData.meals.filter(meal => meal.enabled).map(meal => ({
-                ...meal,
-                foods: meal.foods // Ensure foods array is included
-              }))
-            };
-          }
-          return acc;
-        }, {}),
+        days: {
+          monday: dietPlan,
+          tuesday: dietPlan,
+          wednesday: dietPlan,
+          thursday: dietPlan,
+          friday: dietPlan,
+          saturday: dietPlan,
+          sunday: dietPlan
+        },
         updatedAt: new Date().toISOString()
       };
+
+      console.log('Sending diet plan:', JSON.stringify(planToSave, null, 2)); // For debugging
 
       const response = await fetch(`${API_BASE_URL}/setup`, {
         method: 'POST',
@@ -465,9 +393,7 @@ const DietSetup = () => {
         Alert.alert(
           'Success', 
           hasExistingDiet ? 'Diet plan updated successfully!' : 'Diet plan saved successfully!', 
-          [
-            { text: 'OK', onPress: () => router.back() }
-          ]
+          [{ text: 'OK', onPress: () => router.back() }]
         );
       } else {
         Alert.alert('Error', data.message || 'Failed to save diet plan');
@@ -479,13 +405,13 @@ const DietSetup = () => {
   };
 
   // Component rendering functions
-  const MealTimeInput = ({ dayId, meal }) => (
+  const MealTimeInput = ({ meal }) => (
     <View style={styles.mealTimeContainer}>
       <Text style={styles.mealTimeLabel}>Time:</Text>
       <TextInput
         style={styles.timeInput}
         value={meal.time}
-        onChangeText={(text) => updateMealTime(dayId, meal.id, text)}
+        onChangeText={(text) => updateMealTime(meal.id, text)}
         placeholder="HH:MM"
         placeholderTextColor="#666"
         keyboardType="numbers-and-punctuation"
@@ -494,7 +420,7 @@ const DietSetup = () => {
     </View>
   );
 
-  const FoodItem = ({ dayId, mealId, food }) => (
+  const FoodItem = ({ mealId, food }) => (
     <View style={styles.foodItem}>
       <View style={styles.foodInfo}>
         <Text style={styles.foodName}>{food.name}</Text>
@@ -518,14 +444,14 @@ const DietSetup = () => {
       
       <TouchableOpacity 
         style={styles.removeFoodButton}
-        onPress={() => removeFoodFromMeal(dayId, mealId, food.id)}
+        onPress={() => removeFoodFromMeal(mealId, food.id)}
       >
         <Ionicons name="trash-outline" size={16} color="#ff4444" />
       </TouchableOpacity>
     </View>
   );
 
-  const MealCard = ({ dayId, meal }) => (
+  const MealCard = ({ meal }) => (
     <View style={[
       styles.mealCard,
       !meal.enabled && styles.mealCardDisabled
@@ -537,20 +463,20 @@ const DietSetup = () => {
             {meal.isCustom && (
               <TouchableOpacity 
                 style={styles.removeMealButton}
-                onPress={() => removeCustomMeal(dayId, meal.id)}
+                onPress={() => removeCustomMeal(meal.id)}
               >
                 <Ionicons name="close-circle" size={16} color="#ff4444" />
               </TouchableOpacity>
             )}
           </View>
-          <MealTimeInput dayId={dayId} meal={meal} />
+          <MealTimeInput meal={meal} />
         </View>
         
         <View style={styles.mealControls}>
           <Text style={styles.mealTotal}>{meal.totalCalories} kcal</Text>
           <Switch
             value={meal.enabled}
-            onValueChange={() => toggleMealEnabled(dayId, meal.id)}
+            onValueChange={() => toggleMealEnabled(meal.id)}
             trackColor={{ false: '#767577', true: '#00f5ff' }}
             thumbColor={meal.enabled ? '#00ff9d' : '#f4f3f4'}
           />
@@ -562,7 +488,6 @@ const DietSetup = () => {
           {meal.foods.map(food => (
             <FoodItem 
               key={food.id} 
-              dayId={dayId}
               mealId={meal.id}
               food={food} 
             />
@@ -571,7 +496,6 @@ const DietSetup = () => {
           <TouchableOpacity 
             style={styles.addFoodButton}
             onPress={() => {
-              setSelectedDay(dayId);
               setSelectedMeal(meal.id);
               setShowAddFoodModal(true);
             }}
@@ -583,54 +507,6 @@ const DietSetup = () => {
       )}
     </View>
   );
-
-  const DaySection = ({ day }) => {
-    const dayData = dietPlan[day.id];
-    
-    if (!dayData) return null;
-    
-    return (
-      <View style={[
-        styles.daySection,
-        !dayData.enabled && styles.daySectionDisabled
-      ]}>
-        <View style={styles.dayHeader}>
-          <View style={styles.dayTitleContainer}>
-            <Text style={styles.dayTitle}>{day.name}</Text>
-            <Text style={styles.dayCalories}>
-              Total: {dayData.totalCalories} kcal
-            </Text>
-          </View>
-          <Switch
-            value={dayData.enabled}
-            onValueChange={() => toggleDayEnabled(day.id)}
-            trackColor={{ false: '#767577', true: '#00f5ff' }}
-            thumbColor={dayData.enabled ? '#00ff9d' : '#f4f3f4'}
-          />
-        </View>
-
-        {dayData.enabled && (
-          <View style={styles.mealsContainer}>
-            {dayData.meals.map(meal => (
-              <MealCard key={meal.id} dayId={day.id} meal={meal} />
-            ))}
-            
-            <TouchableOpacity 
-              style={styles.addMealCard}
-              onPress={() => {
-                setSelectedDay(day.id);
-                setShowAddMealModal(true);
-              }}
-            >
-              <Ionicons name="add-circle-outline" size={24} color="#00f5ff" />
-              <Text style={styles.addMealCardText}>Add Another Meal</Text>
-              <Text style={styles.addMealCardSubtext}>Snacks, Brunch, Pre-workout, etc.</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    );
-  };
 
   if (isLoading) {
     return (
@@ -683,40 +559,41 @@ const DietSetup = () => {
           </View>
         </View>
 
-        {/* Schedule Options */}
+        {/* Daily Diet Plan */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Schedule Options</Text>
-          <View style={styles.optionCard}>
-            <View style={styles.optionInfo}>
-              <Text style={styles.optionTitle}>Same diet for all days</Text>
-              <Text style={styles.optionDescription}>
-                {isSameForAllDays 
-                  ? 'Your diet will be the same for every day' 
-                  : 'You can set different diets for each day'
-                }
+          <View style={styles.dayHeader}>
+            <View style={styles.dayTitleContainer}>
+              <Text style={styles.dayTitle}>Daily Diet Plan</Text>
+              <Text style={styles.dayCalories}>
+                Total: {dietPlan.totalCalories} kcal
+              </Text>
+              <Text style={styles.dayMacros}>
+                P: {dietPlan.totalProtein}g | C: {dietPlan.totalCarbs}g | F: {dietPlan.totalFat}g
               </Text>
             </View>
             <Switch
-              value={isSameForAllDays}
-              onValueChange={setIsSameForAllDays}
+              value={dietPlan.enabled}
+              onValueChange={toggleDayEnabled}
               trackColor={{ false: '#767577', true: '#00f5ff' }}
-              thumbColor={isSameForAllDays ? '#00ff9d' : '#f4f3f4'}
+              thumbColor={dietPlan.enabled ? '#00ff9d' : '#f4f3f4'}
             />
           </View>
-        </View>
 
-        {/* Days Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {isSameForAllDays ? 'Your Daily Diet' : 'Weekly Diet Plan'}
-          </Text>
-          
-          {isSameForAllDays ? (
-            <DaySection day={DAYS_OF_WEEK[0]} />
-          ) : (
-            DAYS_OF_WEEK.map(day => (
-              <DaySection key={day.id} day={day} />
-            ))
+          {dietPlan.enabled && (
+            <View style={styles.mealsContainer}>
+              {dietPlan.meals.map(meal => (
+                <MealCard key={meal.id} meal={meal} />
+              ))}
+              
+              <TouchableOpacity 
+                style={styles.addMealCard}
+                onPress={() => setShowAddMealModal(true)}
+              >
+                <Ionicons name="add-circle-outline" size={24} color="#00f5ff" />
+                <Text style={styles.addMealCardText}>Add Another Meal</Text>
+                <Text style={styles.addMealCardSubtext}>Snacks, Brunch, Pre-workout, etc.</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -884,7 +761,7 @@ const DietSetup = () => {
               
               <TouchableOpacity 
                 style={[styles.modalButton, styles.addButton]}
-                onPress={() => addCustomMeal(selectedDay)}
+                onPress={addCustomMeal}
               >
                 <Text style={styles.addButtonText}>Add Meal</Text>
               </TouchableOpacity>
@@ -942,12 +819,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 10,
   },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#777',
-    marginBottom: 15,
-    lineHeight: 20,
-  },
   kcalInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -967,45 +838,15 @@ const styles = StyleSheet.create({
     color: '#777',
     marginLeft: 10,
   },
-  optionCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#121212',
-    borderRadius: 12,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  optionInfo: {
-    flex: 1,
-    marginRight: 15,
-  },
-  optionTitle: {
-    fontSize: 16,
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  optionDescription: {
-    fontSize: 12,
-    color: '#777',
-    lineHeight: 16,
-  },
-  daySection: {
-    backgroundColor: '#121212',
-    borderRadius: 12,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    marginBottom: 15,
-  },
-  daySectionDisabled: {
-    opacity: 0.6,
-  },
   dayHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: '#121212',
+    borderRadius: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
     marginBottom: 15,
   },
   dayTitleContainer: {
@@ -1020,6 +861,11 @@ const styles = StyleSheet.create({
   dayCalories: {
     fontSize: 12,
     color: '#00f5ff',
+    marginBottom: 2,
+  },
+  dayMacros: {
+    fontSize: 11,
+    color: '#777',
   },
   mealsContainer: {
     gap: 12,
