@@ -721,10 +721,6 @@ const FitStreakCommunity = () => {
             <Text style={styles.communityTitle}>FitStreak Community</Text>
             <Text style={styles.communitySubtitle}>Connect • Compete • Grow</Text>
           </View>
-          <TouchableOpacity style={styles.notificationBell}>
-            <Ionicons name="notifications" size={20} color="#00ff9d" />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.sectionTabs}>

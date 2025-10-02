@@ -229,7 +229,6 @@ const FitPulseApp = () => {
     scheduleDailyReminder();
 
     return () => {
-      // Cleanup if needed
     };
   }, []);
 
@@ -522,12 +521,6 @@ const FitPulseApp = () => {
           <View style={styles.headerIcons}>
             <TouchableOpacity style={styles.avatar} onPress={() => router.push('/Profile')}>
               <FontAwesome name="user" size={20} color="#f0f0f0" />
-            </TouchableOpacity>
-            {/* <TouchableOpacity style={styles.avatar} onPress={() => router.push('/Songs')}>
-              <FontAwesome name="music" size={20} color="#f0f0f0" />
-            </TouchableOpacity> */}
-            <TouchableOpacity style={styles.heartIcon} onPress={() => router.push('/Notification')}>
-              <FontAwesome name="heart" size={20} color="#f0f0f0" />
             </TouchableOpacity>
           </View>
         </View>

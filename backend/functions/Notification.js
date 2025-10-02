@@ -3,7 +3,7 @@ const expo = new Expo();
 const Usermongo = require("../models/User-mongo");
 const Postmongo = require("../models/post-mongo");
 
-// Your existing sendNotification function
+
 async function sendNotification(token, title, message, data = {}) {
   if (!Expo.isExpoPushToken(token)) {
     console.log('Invalid Expo push token:', token);
@@ -27,13 +27,12 @@ async function sendNotification(token, title, message, data = {}) {
       const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
       tickets.push(...ticketChunk);
     }
-    console.log('Notification sent:', tickets);
+    
   } catch (err) {
     console.error('Error sending notification:', err);
   }
 }
 
-// Function to check and send streak reminders
 async function checkAndSendStreakReminders() {
   try {
     const now = new Date();
@@ -151,9 +150,6 @@ async function Likes() {
     }
   }
 }
-
-
-// Likes();
 
 module.exports = {
   sendNotification,
