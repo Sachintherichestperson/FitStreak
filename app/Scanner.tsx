@@ -65,14 +65,14 @@ const LocationScanner = () => {
         try {
             const token = await AsyncStorage.getItem('Token');
             const [userResponse, locationResponse] = await Promise.all([
-                fetch('http://192.168.29.104:3000/Home/', {
+                fetch('http://192.168.141.177:3000/Home/', {
                     method: 'GET',
                     headers: {
                         Authorization: `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
                 }),
-                fetch('http://192.168.29.104:3000/Home/Gym-Location', {
+                fetch('http://192.168.141.177:3000/Home/Gym-Location', {
                     method: 'GET',
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -97,7 +97,7 @@ const LocationScanner = () => {
     const checkDailyCheckinStatus = async () => {
         try {
             const token = await AsyncStorage.getItem('Token');
-            const response = await fetch('http://192.168.29.104:3000/Home/check-daily-checkin', {
+            const response = await fetch('http://192.168.141.177:3000/Home/check-daily-checkin', {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -182,7 +182,7 @@ const LocationScanner = () => {
 
             console.log('Sending location data:', requestBody);
 
-            const response = await fetch('http://192.168.29.104:3000/Home/save-gym-location', {
+            const response = await fetch('http://192.168.141.177:3000/Home/save-gym-location', {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -264,7 +264,7 @@ const LocationScanner = () => {
             const istOffset = 5.5 * 60; // 5 hours 30 minutes in minutes
             const istTime = new Date(now.getTime() + istOffset * 60 * 1000);
 
-            const response = await fetch('http://192.168.29.104:3000/Home/verify-gym-location', {
+            const response = await fetch('http://192.168.141.177:3000/Home/verify-gym-location', {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,

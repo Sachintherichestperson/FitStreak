@@ -5,16 +5,16 @@ import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Animated,
-  Dimensions,
-  FlatList,
-  Platform,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Animated,
+    Dimensions,
+    FlatList,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 
@@ -107,7 +107,7 @@ const FitPulseApp = () => {
     
     if (userToken) {
       try {
-        await fetch('http://192.168.29.104:3000/Home/save-push-token', {
+        await fetch('http://192.168.141.177:3000/Home/save-push-token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -139,7 +139,7 @@ const FitPulseApp = () => {
 const fetchTodayPlan = async () => {
   try {
     const token = await AsyncStorage.getItem('Token');
-    const response = await fetch('http://192.168.29.104:3000/Home/plan', {
+    const response = await fetch('http://192.168.141.177:3000/Home/plan', {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -162,7 +162,7 @@ const fetchTodayPlan = async () => {
   const fetchBackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.29.104:3000/Home/',{
+      const response = await fetch('http://192.168.141.177:3000/Home/',{
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -184,7 +184,7 @@ const fetchTodayPlan = async () => {
   const BackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.29.104:3000/Home/Active-Challenges', {
+      const response = await fetch('http://192.168.141.177:3000/Home/Active-Challenges', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,

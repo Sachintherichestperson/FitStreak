@@ -56,7 +56,7 @@ const Cart = () => {
             const token = await AsyncStorage.getItem('Token');
 
             // Fetch cart items
-            const cartResponse = await fetch('http://192.168.29.104:3000/Store/Cart', {
+            const cartResponse = await fetch('http://192.168.141.177:3000/Store/Cart', {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -72,7 +72,7 @@ const Cart = () => {
             setCartItems(cartData.cart?.products || []);
 
             // Fetch user's fitcoins balance
-            const userResponse = await fetch('http://192.168.29.104:3000/Store/', {
+            const userResponse = await fetch('http://192.168.141.177:3000/Store/', {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -101,7 +101,7 @@ const Cart = () => {
 
         try {
             const token = await AsyncStorage.getItem('Token');
-            const response = await fetch(`http://192.168.29.104:3000/Store/Cart/${itemId}`, {
+            const response = await fetch(`http://192.168.141.177:3000/Store/Cart/${itemId}`, {
                 method: 'PUT',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -128,7 +128,7 @@ const Cart = () => {
     const removeItem = async (itemId: string) => {
         try {
             const token = await AsyncStorage.getItem('Token');
-            const response = await fetch(`http://192.168.29.104:3000/Store/Cart/${itemId}`, {
+            const response = await fetch(`http://192.168.141.177:3000/Store/Cart/${itemId}`, {
                 method: 'DELETE',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -422,8 +422,10 @@ const Cart = () => {
             {cartItems.length > 0 && (
                 <TouchableOpacity 
                     style={styles.checkoutButton}
-                    onPress={() => router.push('/checkout')}
-                >
+                    onPress={() => router.push({
+                        pathname: '/BuyNow',
+                        params: { product: JSON.stringify({ product: cartItems, fitcoins, total, subtotal, shipping, fitcoinsDiscount, appliedFitcoins}) }
+                    })}>
                     <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
                 </TouchableOpacity>
             )}

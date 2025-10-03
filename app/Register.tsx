@@ -58,7 +58,7 @@ const AuthScreen = () => {
   const handleLogin = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.29.104:3000/Login', {
+      const response = await fetch('http://192.168.141.177:3000/Login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -86,7 +86,7 @@ const AuthScreen = () => {
   const handleRegister = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.29.104:3000/Register', {
+      const response = await fetch('http://192.168.141.177:3000/Register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

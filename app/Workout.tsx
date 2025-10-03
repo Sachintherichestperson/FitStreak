@@ -76,7 +76,7 @@ const WorkoutPlan = () => {
     const fetchWorkoutPlan = async () => {
       try {
         const token = await AsyncStorage.getItem('Token');
-        const response = await fetch('http://192.168.29.104:3000/Workout/', {
+        const response = await fetch('http://192.168.141.177:3000/Workout/', {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -125,7 +125,7 @@ const WorkoutPlan = () => {
   const saveWorkoutCompletion = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      await fetch('http://192.168.29.104:3000/Workout/log-workout', {
+      await fetch('http://192.168.141.177:3000/Workout/log-workout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

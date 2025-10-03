@@ -4,14 +4,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const WorkoutInput = () => {
@@ -74,7 +74,7 @@ const WorkoutInput = () => {
       return;
     }
     
-    const response = await fetch("http://192.168.29.104:3000/Workout/Add/workouts", {
+    const response = await fetch("http://192.168.141.177:3000/Workout/Add/workouts", {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -155,7 +155,7 @@ const WorkoutInput = () => {
         return;
       }
       
-      const response = await fetch(`http://192.168.29.104:3000/Workout/Add/workouts/${id}`, {
+      const response = await fetch(`http://192.168.141.177:3000/Workout/Add/workouts/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -207,7 +207,7 @@ const WorkoutInput = () => {
           }
         };
         
-        const response = await fetch("http://192.168.29.104:3000/Workout/Add/workouts", {
+        const response = await fetch("http://192.168.141.177:3000/Workout/Add/workouts", {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

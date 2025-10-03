@@ -85,7 +85,7 @@ const FitStreakBadges = () => {
   const fetchBadgeData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.29.104:3000/Badges/', {
+      const response = await fetch('http://192.168.141.177:3000/Badges/', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -144,7 +144,7 @@ const FitStreakBadges = () => {
   const fetchBuddyData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.29.104:3000/Badges/Accountability-Buddy', {
+      const response = await fetch('http://192.168.141.177:3000/Badges/Accountability-Buddy', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -177,7 +177,7 @@ const FitStreakBadges = () => {
   const fetchDuoRankings = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.29.104:3000/Badges/Duo-Ranking', {
+      const response = await fetch('http://192.168.141.177:3000/Badges/Duo-Ranking', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,

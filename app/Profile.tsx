@@ -117,7 +117,7 @@ const FitStreakProfile = () => {
   const BackendData = async () => {
     const token = await AsyncStorage.getItem('Token');
     try {
-      const response = await fetch('http://192.168.29.104:3000/Profile/',{
+      const response = await fetch('http://192.168.141.177:3000/Profile/',{
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -187,7 +187,7 @@ const FitStreakProfile = () => {
   const confirmBuddyChange = async (specialCode: string) => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.29.104:3000/Profile/update-buddy', {
+      const response = await fetch('http://192.168.141.177:3000/Profile/update-buddy', {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${token}`,
@@ -221,7 +221,7 @@ const FitStreakProfile = () => {
   const removeBuddy = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.29.104:3000/Profile/remove-buddy', {
+      const response = await fetch('http://192.168.141.177:3000/Profile/remove-buddy', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -252,7 +252,7 @@ const FitStreakProfile = () => {
     try {
       const token = await AsyncStorage.getItem('Token');
       
-      const response = await fetch('http://192.168.29.104:3000/Profile/Profile-Edit', {
+      const response = await fetch('http://192.168.141.177:3000/Profile/Profile-Edit', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -376,7 +376,7 @@ const FitStreakProfile = () => {
       } as any);
     }
 
-    const response = await fetch('http://192.168.29.104:3000/Profile/Create-Post', {
+    const response = await fetch('http://192.168.141.177:3000/Profile/Create-Post', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -458,7 +458,7 @@ const FitStreakProfile = () => {
 
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch(`http://192.168.29.104:3000/Profile/posts/${postId}/comments`, {
+      const response = await fetch(`http://192.168.141.177:3000/Profile/posts/${postId}/comments`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

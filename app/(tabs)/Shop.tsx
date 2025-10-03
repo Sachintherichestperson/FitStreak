@@ -4,16 +4,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -56,7 +56,7 @@ const AppStore = () => {
   const fetchBackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const productsResponse = await fetch('http://192.168.29.104:3000/Store/', {
+      const productsResponse = await fetch('http://192.168.141.177:3000/Store/', {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -106,7 +106,7 @@ const AppStore = () => {
   try {
     const token = await AsyncStorage.getItem('Token');
 
-    const response = await fetch('http://192.168.29.104:3000/Store/Cart', {
+    const response = await fetch('http://192.168.141.177:3000/Store/Cart', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -240,13 +240,12 @@ const AppStore = () => {
         <TouchableOpacity 
           style={styles.productCard}
           onPress={() => router.push({
-      pathname: '/product-detail',
-      params: { 
-        product: JSON.stringify(item),
-        fitcoins: fitcoins,
-      }
-    })}
-    >
+            pathname: '/product-detail',
+            params: { 
+              data: JSON.stringify({ product: item, fitcoins }) 
+            }
+          })}
+      >
       <View style={styles.productImageContainer}>
         {item.image ? (
           <Image 

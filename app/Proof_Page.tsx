@@ -33,7 +33,7 @@ const ChallengeProofSubmission = () => {
     const fetchChallengeDetails = async () => {
       try {
         const token = await AsyncStorage.getItem('Token');
-        const response = await fetch(`http://192.168.29.104:3000/Challenges/Proof/${challengeId}`, {
+        const response = await fetch(`http://192.168.141.177:3000/Challenges/Proof/${challengeId}`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -57,7 +57,7 @@ const ChallengeProofSubmission = () => {
         const token = await AsyncStorage.getItem('Token');
         
         // Check proof status
-        const proofResponse = await fetch(`http://192.168.29.104:3000/Challenges/Proof-Status/${challengeId}`, {
+        const proofResponse = await fetch(`http://192.168.141.177:3000/Challenges/Proof-Status/${challengeId}`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -70,7 +70,7 @@ const ChallengeProofSubmission = () => {
         
         // Only check challenge result if proof is approved or challenge is non-proof
         if (proofData.status === 'Approve' || challenge?.Challenge_Type === 'Non-Proof') {
-          const resultResponse = await fetch(`http://192.168.29.104:3000/Challenges/check-challenge-result/${challengeId}`, {
+          const resultResponse = await fetch(`http://192.168.141.177:3000/Challenges/check-challenge-result/${challengeId}`, {
             method: 'GET',
             headers: {
               Authorization: `Bearer ${token}`,
@@ -156,7 +156,7 @@ const ChallengeProofSubmission = () => {
       formData.append('challengeId', String(challengeId));
       formData.append('submissionDate', new Date().toISOString());
 
-      const response = await fetch('http://192.168.29.104:3000/Challenges/submit-proof', {
+      const response = await fetch('http://192.168.141.177:3000/Challenges/submit-proof', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -4,14 +4,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Animated,
-    Easing,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Animated,
+  Easing,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 interface Product {
@@ -32,8 +32,9 @@ interface Product {
 const ProductDetail = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const product = JSON.parse(params.product as string) as Product;
-  
+  const { product, fitcoins } = JSON.parse(params.data as string);
+  console.log(product, fitcoins);
+
   const [showSuccess, setShowSuccess] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const scaleAnim = useState(new Animated.Value(0.5))[0];
@@ -48,7 +49,7 @@ const ProductDetail = () => {
     try {
       const token = await AsyncStorage.getItem('Token');
 
-      const response = await fetch('http://192.168.29.104:3000/Store/Cart', {
+      const response = await fetch('http://192.168.141.177:3000/Store/Cart', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -62,7 +63,6 @@ const ProductDetail = () => {
         return;
       }
 
-      // Show success animation
       setShowSuccess(true);
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -223,12 +223,15 @@ const ProductDetail = () => {
         >
           <Text style={styles.addToCartText}>Add to Cart</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        {/* <TouchableOpacity 
           style={styles.buyNowButton}
-          activeOpacity={0.8}
+          onPress={() => router.push({
+            pathname: '/BuyNow',
+            params: { product: JSON.stringify({ product, fitcoins}) }
+          })}
         >
           <Text style={styles.buyNowText}>Buy Now</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </View>
   );

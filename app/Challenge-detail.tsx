@@ -51,7 +51,7 @@ export default function ChallengeDetailScreen() {
       try {
         const token = await AsyncStorage.getItem('Token');
         
-        const response = await fetch(`http://192.168.29.104:3000/Challenges/${id}`, {
+        const response = await fetch(`http://192.168.141.177:3000/Challenges/${id}`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -91,7 +91,7 @@ export default function ChallengeDetailScreen() {
     try {
       const token = await AsyncStorage.getItem('Token');
       const user = userId;
-      const response = await fetch(`http://192.168.29.104:3000/Challenges/${id}/join`, {
+      const response = await fetch(`http://192.168.141.177:3000/Challenges/${id}/join`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -108,7 +108,7 @@ export default function ChallengeDetailScreen() {
       setJoinModalVisible(false);
       
       // Refresh challenge data to update participants count
-      const updatedResponse = await fetch(`http://192.168.29.104:3000/Challenges/${id}`, {
+      const updatedResponse = await fetch(`http://192.168.141.177:3000/Challenges/${id}`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -141,7 +141,7 @@ export default function ChallengeDetailScreen() {
         onPress: async () => {
           try {
             const token = await AsyncStorage.getItem('Token');
-            const response = await fetch(`http://192.168.29.104:3000/Challenges/${id}/leave`, {
+            const response = await fetch(`http://192.168.141.177:3000/Challenges/${id}/leave`, {
               method: 'POST',
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -159,7 +159,7 @@ export default function ChallengeDetailScreen() {
             setJoinModalVisible(false);
 
             // Refresh challenge data
-            const updatedResponse = await fetch(`http://192.168.29.104:3000/Challenges/${id}`, {
+            const updatedResponse = await fetch(`http://192.168.141.177:3000/Challenges/${id}`, {
               method: 'GET',
               headers: {
                 Authorization: `Bearer ${token}`,

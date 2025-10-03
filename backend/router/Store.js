@@ -4,7 +4,7 @@ const Cartmongo = require('../models/Cartmongo');
 const Usermongo = require('../models/User-mongo');
 const Storemongo = require('../models/Product-mongo');
 const isloggedin = require('../middleware/isloggein');
-
+const Ordermongo = require("../models/Ordermongo");
 
 
 router.get('/', isloggedin, async (req, res) => {
@@ -24,6 +24,8 @@ router.get('/Cart', isloggedin, async (req, res) => {
                 model: 'Products'
             })
             .exec();
+
+            console.log(cart)
 
         if (!cart) {
             return res.status(200).json({ 
@@ -173,5 +175,58 @@ router.post('/Cart', isloggedin, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+
+router.post("/Orders", isloggedin, async (req, res) => {
+    try {
+        const { Orderdata } = req.body;
+
+
+        // Find the user
+        const user = await Usermongo.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        // Check if user has enough Fitcoins
+        if (Orderdata.fitcoinsUsed > user.FitCoins) {
+            return res.status(400).json({ success: false, message: "Not enough Fitcoins" });
+        }
+        const products = Orderdata.products.map(p => ({
+            productId: p._id || p.product?._id,
+            quantity: p.quantity
+        }));
+
+        if (products.some(p => !p.productId)) {
+            return res.status(400).json({ success: false, message: "Product ID missing in order" });
+        }
+
+
+
+        // Create the order (assuming you have an Order model)
+        const newOrder = await Ordermongo.create({
+            user: user._id,
+            products,
+            address: Orderdata.address,
+            paymentMethod: Orderdata.paymentMethod,
+            fitcoinsUsed: Orderdata.fitcoinsUsed,
+            totalAmount: Orderdata.totalAmount,
+            subtotal: Orderdata.subtotal,
+            shipping: Orderdata.shipping,
+            discount: Orderdata.discount,
+            createdAt: new Date(),
+        });
+
+        // Deduct Fitcoins
+        user.FitCoins -= Orderdata.fitcoinsUsed;
+        await user.save();
+
+        res.status(201).json({ success: true, order: newOrder, remainingFitcoins: user.FitCoins });
+        
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+});
+
 
 module.exports = router;

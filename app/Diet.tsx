@@ -97,7 +97,7 @@ const DietPlan = () => {
         }
 
         // Fetch diet plan
-        const response = await fetch('http://192.168.29.104:3000/Diet/today', {
+        const response = await fetch('http://192.168.141.177:3000/Diet/today', {
           headers: { 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'

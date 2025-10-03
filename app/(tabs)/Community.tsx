@@ -3,24 +3,24 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Animated,
-  Dimensions,
-  Easing,
-  FlatList,
-  Image,
-  ImageBackground,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  RefreshControl,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Animated,
+    Dimensions,
+    Easing,
+    FlatList,
+    Image,
+    ImageBackground,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    RefreshControl,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -115,7 +115,7 @@ const FitStreakCommunity = () => {
   const fetchBackendData = async () => {
   try {
     const token = await AsyncStorage.getItem('Token');
-    const response = await fetch('http://192.168.29.104:3000/Community/', {
+    const response = await fetch('http://192.168.141.177:3000/Community/', {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -155,7 +155,7 @@ const FitStreakCommunity = () => {
   const fetchLeaderboardData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.29.104:3000/Community/Leaderboard', {
+      const response = await fetch('http://192.168.141.177:3000/Community/Leaderboard', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -190,7 +190,7 @@ const FitStreakCommunity = () => {
   const ReactToPost = async (postId: string, reactionType: string) => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch(`http://192.168.29.104:3000/Community/Reaction/${postId}?type=${reactionType}`, {
+      const response = await fetch(`http://192.168.141.177:3000/Community/Reaction/${postId}?type=${reactionType}`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -263,7 +263,7 @@ const FitStreakCommunity = () => {
     setIsCommentSubmitting(true);
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch(`http://192.168.29.104:3000/Community/Comment/${postId}`, {
+      const response = await fetch(`http://192.168.141.177:3000/Community/Comment/${postId}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
