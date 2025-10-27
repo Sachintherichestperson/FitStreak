@@ -13,6 +13,7 @@ import {
     Text,
     TouchableOpacity,
     View,
+    ScrollView,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -65,14 +66,14 @@ const LocationScanner = () => {
         try {
             const token = await AsyncStorage.getItem('Token');
             const [userResponse, locationResponse] = await Promise.all([
-                fetch('http://192.168.141.177:3000/Home/', {
+                fetch('https://backend-hbwp.onrender.com/Home/', {
                     method: 'GET',
                     headers: {
                         Authorization: `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
                 }),
-                fetch('http://192.168.141.177:3000/Home/Gym-Location', {
+                fetch('https://backend-hbwp.onrender.com/Home/Gym-Location', {
                     method: 'GET',
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -97,7 +98,7 @@ const LocationScanner = () => {
     const checkDailyCheckinStatus = async () => {
         try {
             const token = await AsyncStorage.getItem('Token');
-            const response = await fetch('http://192.168.141.177:3000/Home/check-daily-checkin', {
+            const response = await fetch('https://backend-hbwp.onrender.com/Home/check-daily-checkin', {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -182,7 +183,7 @@ const LocationScanner = () => {
 
             console.log('Sending location data:', requestBody);
 
-            const response = await fetch('http://192.168.141.177:3000/Home/save-gym-location', {
+            const response = await fetch('https://backend-hbwp.onrender.com/Home/save-gym-location', {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -264,7 +265,7 @@ const LocationScanner = () => {
             const istOffset = 5.5 * 60; // 5 hours 30 minutes in minutes
             const istTime = new Date(now.getTime() + istOffset * 60 * 1000);
 
-            const response = await fetch('http://192.168.141.177:3000/Home/verify-gym-location', {
+            const response = await fetch('https://backend-hbwp.onrender.com/Home/verify-gym-location', {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -304,17 +305,22 @@ const LocationScanner = () => {
 };
 
     const formatLastCheckinDate = (dateString?: string) => {
-        if (!dateString) return 'Never';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+
+    // Display as UTC time (exact from DB)
+    return date.toLocaleString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'UTC'
+    });
+};
+
 
     if (isLoading) {
         return (
@@ -337,7 +343,6 @@ const LocationScanner = () => {
                 colors={['#0a0a0a', '#121212']}
                 style={StyleSheet.absoluteFill}
             />
-            
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#f0f0f0" />
@@ -350,7 +355,13 @@ const LocationScanner = () => {
                 </View>
             </View>
 
-            <View style={styles.content}>
+            
+            <ScrollView 
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                bounces={true}
+            >
                 {/* Streak Info */}
                 <View style={styles.streakContainer}>
                     <View style={styles.streakHeader}>
@@ -565,7 +576,7 @@ const LocationScanner = () => {
                         </>
                     )}
                 </View>
-            </View>
+            </ScrollView>
 
             {/* Floating Action Button */}
             <Animated.View style={[styles.homeButton, { transform: [{ scale: pulseAnim }] }]}>
@@ -597,8 +608,6 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 20,
-        paddingTop: 50,
-        marginBottom: 10,
     },
     backButton: {
         padding: 5,
@@ -618,6 +627,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#333',
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        padding: 20,
+        paddingTop: 0, // Remove top padding since header is fixed
     },
     content: {
         padding: 20,

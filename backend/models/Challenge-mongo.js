@@ -8,7 +8,8 @@ const ChallengeSchema = new mongoose.Schema({
     Challenge_Type: { type: String, enum: ['Proof', 'Non-Proof'], required: true },
     Participants: [{
         UserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        Status: { type: String, enum: ['Joined', 'Completed', 'Failed'], default: 'Joined' }
+        Status: { type: String, enum: ['Joined', 'Completed', 'Failed'], default: 'Joined' },
+        CompletedAt: { type: Date }
     }],
     Rewards: {
         Winner: String,

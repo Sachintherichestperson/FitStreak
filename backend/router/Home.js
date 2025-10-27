@@ -34,24 +34,20 @@ router.get('/', isloggedin, async (req, res) => {
 
 router.get('/plan',isloggedin, async (req, res) => {
   try {
-    const userId = req.user.id; // Assuming you have auth middleware that sets req.user
+    const userId = req.user.id;
     const today = new Date();
     const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const todayDayName = dayNames[today.getDay()];
 
-    // Fetch user's workout plan
     const workoutPlan = await Workoutmongo.findOne({ user: userId });
     
-    // Find today's workout
     let todayWorkout = null;
     if (workoutPlan && workoutPlan.days) {
       todayWorkout = workoutPlan.days.find(day => day.day === todayDayName);
     }
 
-    // Fetch user's diet plan
     const dietPlan = await Dietmongo.findOne({ userId: userId });
     
-    // Get today's diet
     let todayDiet = null;
     let totalCalories = 0;
     let totalProtein = 0;
@@ -64,7 +60,6 @@ router.get('/plan',isloggedin, async (req, res) => {
       if (todayDiet && todayDiet.enabled) {
         totalCalories = todayDiet.totalCalories || 0;
         
-        // Calculate total protein from all meals
         if (todayDiet.meals) {
           todayDiet.meals.forEach(meal => {
             if (meal.enabled) {
@@ -75,15 +70,13 @@ router.get('/plan',isloggedin, async (req, res) => {
       }
     }
 
-    // Format workout data
     const workoutData = todayWorkout ? {
       title: todayWorkout.title,
       exerciseCount: todayWorkout.exercises ? todayWorkout.exercises.length : 0,
       totalTime: calculateWorkoutTime(todayWorkout.exercises),
-      targetTime: "6:00 PM" // You can make this dynamic based on user preferences
+      targetTime: "6:00 PM"
     } : null;
 
-    // Format diet data
     const dietData = todayDiet ? {
       description: getDietDescription(totalCalories),
       calories: totalCalories,
@@ -91,7 +84,6 @@ router.get('/plan',isloggedin, async (req, res) => {
       targetTime: "Track your meals"
     } : null;
 
-    // console.log(dietData)
 
     res.json({
       success: true,
@@ -108,14 +100,12 @@ router.get('/plan',isloggedin, async (req, res) => {
   }
 });
 
-// Helper function to calculate workout time (approx 5 minutes per exercise)
 function calculateWorkoutTime(exercises) {
   if (!exercises) return 0;
   const totalExercises = exercises.length;
-  return Math.round(totalExercises * 5); // 5 minutes per exercise
+  return Math.round(totalExercises * 5);
 }
 
-// Helper function to generate diet description
 function getDietDescription(calories) {
   if (calories < 1500) return "Low Calorie Meal";
   if (calories < 2000) return "Balanced Meal";
@@ -330,7 +320,7 @@ router.post("/verify-gym-location", isloggedin, async (req, res) => {
       return res.json({ success: false, message: "Location not verified ❌" });
     }
 
-    const user = await Usermongo.findById(req.user.id);
+    const user = await Usermongo.findById(req.user.id).populate("ActiveChallenge.challengeId")
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
@@ -372,6 +362,12 @@ router.post("/verify-gym-location", isloggedin, async (req, res) => {
     user.FitCoins += 5;
     user.Points += 10;
     const badgeData = await UserBadge(user.id);
+
+    user.ActiveChallenge.forEach(ac => {
+      if (ac.challengeId && ac.challengeId.Challenge_Type === "Non-Proof") {
+        ac.ChallengeScan = (ac.ChallengeScan || 0) + 1;
+      }
+    });
 
     await user.save();
 

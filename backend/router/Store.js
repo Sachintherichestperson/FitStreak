@@ -5,15 +5,18 @@ const Usermongo = require('../models/User-mongo');
 const Storemongo = require('../models/Product-mongo');
 const isloggedin = require('../middleware/isloggein');
 const Ordermongo = require("../models/Ordermongo");
+const { sendNotification } = require('../functions/Notification')
 
 
 router.get('/', isloggedin, async (req, res) => {
     const user = await Usermongo.findById(req.user.id);
     const FitCoins = user.FitCoins;
     const store = await Storemongo.find();
-    const FitCoinsValue = 0.93
+    const FitCoinsValue = 1.93
 
-    res.json({ FitCoins, store, FitCoinsValue });
+    const shuffledStore = store.sort(() => 0.5 - Math.random());
+
+    res.json({ FitCoins, store: shuffledStore, FitCoinsValue });
 });
 
 router.get('/Cart', isloggedin, async (req, res) => {
@@ -219,6 +222,12 @@ router.post("/Orders", isloggedin, async (req, res) => {
         // Deduct Fitcoins
         user.FitCoins -= Orderdata.fitcoinsUsed;
         await user.save();
+
+        await sendNotification(
+            user.NotificationToken,
+            "✅ Order Confirmed!",
+            `Hi ${user.username || 'user'}, your order has been successfully placed. We'll notify you once it's on the way. Thank you for shopping with us!`
+        );
 
         res.status(201).json({ success: true, order: newOrder, remainingFitcoins: user.FitCoins });
         

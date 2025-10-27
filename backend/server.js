@@ -39,9 +39,10 @@ app.use(express.static('public'));
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-  origin: 'http://localhost:8081',
+  origin: true,
   credentials: true,
 }));
+
 app.use('/public', express.static('public'));
 
 // Routes
@@ -54,59 +55,37 @@ app.use('/Diet', DietRoute);
 app.use('/Workout', WorkoutRoute);
 app.use('/Badges', BadgesRoute);
 
-
-app.get('/validate-token', isloggedin, (req, res) => {
-    res.status(200).json({ valid: true });
+app.get("/Cron-Hit", (req, res) => {
+  if (req.query.key !== process.env.CRON_KEY) {
+    return res.status(403).json({ success: false });
+  }
+  res.json({ success: true });
 });
 
-function generateBuddyCode(username, gymName) {
-  const random = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
-  return `${username}-${random}-${gymName || 'NoGym'}`;
-}
-
-async function createUniqueBuddyCode(username, gymName) {
-  let buddyCode;
-  let exists = true;
-  let attempts = 0;
-  const maxAttempts = 10;
-
-  while (exists && attempts < maxAttempts) {
-    buddyCode = generateBuddyCode(username, gymName);
-    const existingUser = await Usermongo.findOne({ BuddyCode: buddyCode });
-    if (!existingUser) {
-      exists = false;
-    }
-    attempts++;
+app.get('/validate-token', isloggedin, (req, res) => {
+  try{
+    res.status(200).json({ valid: true });
+  }catch(err){
+    return res.status(401).json({ message: 'Invalid or expired token' });
   }
+});
 
-  if (exists) throw new Error("Could not generate unique BuddyCode");
-
-  return buddyCode;
-}
 
 app.post('/register', async (req, res) => {
-  const { username, email, password, Unicode } = req.body;
+  const { username, email, password, Mobile } = req.body;
+  const Unicode = "LEGEND1-2"
 
-  let matchedGym = null;
-
-  if (Unicode) {
-    matchedGym = await Gymmongo.findOne({ UniCode: Unicode });
-    if (!matchedGym) {
-      return res.status(400).json({ message: 'Invalid Unicode' });
-    }
-  }
+  const matchedGym = await Gymmongo.findOne({ UniCode: Unicode });
 
   try {
-    const gymName = matchedGym ? matchedGym.Name : null; // or matchedGym.GymName depending on schema
-    const buddyCode = await createUniqueBuddyCode(username, gymName);
 
     const user = new Usermongo({
       username,
       email,
       password,
-      Unicode: Unicode || null,
-      Gym: matchedGym,
-      BuddyCode: buddyCode
+      Mobile,
+      Unicode: Unicode,
+      Gym: matchedGym
     });
 
     if (matchedGym) {
@@ -118,36 +97,22 @@ app.post('/register', async (req, res) => {
       await matchedGym.save();
     }
 
-    
-
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET,
-      { expiresIn: '30d' }
+      { expiresIn: '90d' }
     );
-
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'Strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
 
     const data = { screen: 'Home' }
-    sendNotification(
-      user.NotificationToken,
-      "Welcome To Legends Place",  // title/heading
-      "Thanks for joining! Let's start your fitness journey.", // body
-      data
-    );
+    if (user.NotificationToken) {
+      sendNotification(user.NotificationToken, "Welcome To Legends Place", "Thanks for joining! Let's start your fitness journey.", data);
+    }
 
     await user.save();
 
     res.status(201).json({
       message: 'Registered successfully',
       token,
-      buddyCode: user.BuddyCode
     });
 
   } catch (err) {
@@ -156,6 +121,27 @@ app.post('/register', async (req, res) => {
   }
 });
 
+app.post('/Login', async (req, res) => {
+    const { email, password } = req.body;
+    const user = await Usermongo.findOne({ email });
+    if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+    }
+    if (user.password !== password) {
+        return res.status(401).json({ error: 'Invalid password' });
+    }
+    const token = jwt.sign({ email, id: user._id }, process.env.JWT_SECRET, {
+        expiresIn: '90d',
+    });
+
+    sendNotification(
+      user.NotificationToken,
+      "Welcome To Legends Place",
+      "Thanks for joining! Let's start your fitness journey.",
+    );
+    
+    res.status(200).json({ message: 'User logged in successfully', token });
+});
 
 app.post('/refresh', (req, res) => {
   const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
@@ -176,38 +162,5 @@ app.post('/refresh', (req, res) => {
     res.json({ token: newAccessToken });
   });
 });
-
-
-app.post('/Login', async (req, res) => {
-    const { email, password } = req.body;
-    const user = await Usermongo.findOne({ email });
-    if (!user) {
-        return res.status(401).json({ error: 'User not found' });
-    }
-    if (user.password !== password) {
-        return res.status(401).json({ error: 'Invalid password' });
-    }
-    const token = jwt.sign({ email, id: user._id }, process.env.JWT_SECRET, {
-        expiresIn: '30d',
-    });
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'Strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-
-    const data = { screen: 'Diet' }
-    sendNotification(
-      user.NotificationToken,
-      "Welcome To Legends Place",
-      "Thanks for joining! Let's start your fitness journey.",
-      data
-    );
-    
-    res.status(200).json({ message: 'User logged in successfully', token });
-});
-
 
 app.listen(3000);

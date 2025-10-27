@@ -4,16 +4,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  FlatList,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -40,6 +40,7 @@ const AppStore = () => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [fitcoins, setFitcoins] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
+  console.log(products[0])
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [FITCOIN_TO_INR_RATE, setFitCoinValue] = useState(0);
@@ -56,7 +57,7 @@ const AppStore = () => {
   const fetchBackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const productsResponse = await fetch('http://192.168.141.177:3000/Store/', {
+      const productsResponse = await fetch('https://backend-hbwp.onrender.com/Store/', {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -76,7 +77,11 @@ const AppStore = () => {
         price: item.SellingPrice,
         costPrice: item.CostPrice,
         maxDiscount: item.MaxDiscount || 0,
-        fitcoinPrice: item.fitcoinPrice || Math.floor(item.MaxDiscount / FITCOIN_TO_INR_RATE),
+        fitcoinPrice: item.fitcoinPrice ?? (
+    FITCOIN_TO_INR_RATE && FITCOIN_TO_INR_RATE > 0
+        ? Math.floor(item.MaxDiscount / FITCOIN_TO_INR_RATE)
+        : 0 // fallback if rate is missing or zero
+),
         category: mapCategory(item.Category),
         image: item.Image || null,
         rating: item.rating || 4.5,
@@ -106,7 +111,7 @@ const AppStore = () => {
   try {
     const token = await AsyncStorage.getItem('Token');
 
-    const response = await fetch('http://192.168.141.177:3000/Store/Cart', {
+    const response = await fetch('https://backend-hbwp.onrender.com/Store/Cart', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -292,7 +297,7 @@ const AppStore = () => {
           <View style={styles.fitcoinContainer}>
             <FontAwesome name="diamond" size={12} color="#00f5ff" />
             <Text style={styles.fitcoinPrice}>
-              Use up to {item.fitcoinPrice} FitCoins (Save ₹ 33)
+              Use up to {item.fitcoinPrice} FitCoins
             </Text>
           </View>
         )}
@@ -409,7 +414,7 @@ const AppStore = () => {
           <View style={styles.specialOfferContent}>
             <Text style={styles.specialOfferTitle}>Double FitCoins Week!</Text>
             <Text style={styles.specialOfferText}>
-              Earn double FitCoins on all workouts this week. 5 FitCoins = ₹1.65
+              Earn double FitCoins on all workouts this week. 1 FitCoins = ₹1.65
             </Text>
             <TouchableOpacity 
               style={styles.specialOfferButton}

@@ -56,7 +56,7 @@ const Cart = () => {
             const token = await AsyncStorage.getItem('Token');
 
             // Fetch cart items
-            const cartResponse = await fetch('http://192.168.141.177:3000/Store/Cart', {
+            const cartResponse = await fetch('https://backend-hbwp.onrender.com/Store/Cart', {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -72,7 +72,7 @@ const Cart = () => {
             setCartItems(cartData.cart?.products || []);
 
             // Fetch user's fitcoins balance
-            const userResponse = await fetch('http://192.168.141.177:3000/Store/', {
+            const userResponse = await fetch('https://backend-hbwp.onrender.com/Store/', {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -101,7 +101,7 @@ const Cart = () => {
 
         try {
             const token = await AsyncStorage.getItem('Token');
-            const response = await fetch(`http://192.168.141.177:3000/Store/Cart/${itemId}`, {
+            const response = await fetch(`https://backend-hbwp.onrender.com/Store/Cart/${itemId}`, {
                 method: 'PUT',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -128,7 +128,7 @@ const Cart = () => {
     const removeItem = async (itemId: string) => {
         try {
             const token = await AsyncStorage.getItem('Token');
-            const response = await fetch(`http://192.168.141.177:3000/Store/Cart/${itemId}`, {
+            const response = await fetch(`https://backend-hbwp.onrender.com/Store/Cart/${itemId}`, {
                 method: 'DELETE',
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -389,31 +389,7 @@ const Cart = () => {
                             </View>
                         </View>
 
-                        {/* Payment Options */}
-                        <View style={styles.paymentOptions}>
-                            <Text style={styles.sectionTitle}>Payment Method</Text>
-                            <TouchableOpacity style={styles.paymentOption}>
-                                <View style={styles.paymentOptionLeft}>
-                                    <FontAwesome name="credit-card" size={20} color="#00f5ff" />
-                                    <Text style={styles.paymentOptionText}>Credit/Debit Card</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#777" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.paymentOption}>
-                                <View style={styles.paymentOptionLeft}>
-                                    <FontAwesome name="paypal" size={20} color="#0070ba" />
-                                    <Text style={styles.paymentOptionText}>PayPal</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#777" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.paymentOption}>
-                                <View style={styles.paymentOptionLeft}>
-                                    <FontAwesome name="diamond" size={20} color="#00f5ff" />
-                                    <Text style={styles.paymentOptionText}>FitCoins</Text>
-                                </View>
-                                <Text style={styles.fitcoinBalance}>Balance: {fitcoins} (₹{(fitcoins * FITCOIN_TO_INR_RATE).toFixed(2)})</Text>
-                            </TouchableOpacity>
-                        </View>
+                      
                     </>
                 )}
             </ScrollView>

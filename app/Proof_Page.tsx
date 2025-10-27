@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import mime from 'mime';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const ChallengeProofSubmission = () => {
@@ -24,82 +24,101 @@ const ChallengeProofSubmission = () => {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [media, setMedia] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [loading, setLoading] = useState(false);
-  const [proofStatus, setProofStatus] = useState('To-be-submitted');
+  const [proofStatus, setProofStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [challengeResult, setChallengeResult] = useState<string | null | undefined>();
+  const [challengeResult, setChallengeResult] = useState<string | null | undefined>(undefined);
   const [lastSubmissionDate, setLastSubmissionDate] = useState<string | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchChallengeDetails = async () => {
-      try {
-        const token = await AsyncStorage.getItem('Token');
-        const response = await fetch(`http://192.168.141.177:3000/Challenges/Proof/${challengeId}`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        const data = await response.json();
-        setChallenge(data.challenge);
-      } catch (error) {
-        console.error('Error fetching challenge:', error);
-        Alert.alert('Error', 'Failed to load challenge details');
-      }
-    };
-
-    fetchChallengeDetails();
+  // Memoized fetch functions
+  const fetchChallengeDetails = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      const response = await fetch(`https://backend-hbwp.onrender.com/Challenges/Proof/${challengeId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      setChallenge(data.challenge);
+      return data.challenge;
+    } catch (error) {
+      console.error('Error fetching challenge:', error);
+      Alert.alert('Error', 'Failed to load challenge details');
+      return null;
+    }
   }, [challengeId]);
 
-  useEffect(() => {
-    const fetchProofStatus = async () => {
-      try {
-        const token = await AsyncStorage.getItem('Token');
-        
-        // Check proof status
-        const proofResponse = await fetch(`http://192.168.141.177:3000/Challenges/Proof-Status/${challengeId}`, {
+  const fetchProofStatus = useCallback(async (currentChallenge: Challenge) => {
+    try {
+      const token = await AsyncStorage.getItem('Token');
+      
+      // Check proof status
+      const proofResponse = await fetch(`https://backend-hbwp.onrender.com/Challenges/Proof-Status/${challengeId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const proofData = await proofResponse.json();
+      setProofStatus(proofData.status);
+      setLastSubmissionDate(proofData.lastSubmissionDate || null);
+      
+      // Only check challenge result if proof is approved or challenge is non-proof
+      if (proofData.status === 'Approve' || currentChallenge.Challenge_Type === 'Non-Proof' || currentChallenge.Challenge_Type === 'Proof') {
+        const resultResponse = await fetch(`https://backend-hbwp.onrender.com/Challenges/check-challenge-result/${challengeId}`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
-        const proofData = await proofResponse.json();
-        setProofStatus(proofData.status);
-        setLastSubmissionDate(proofData.lastSubmissionDate || null);
-        
-        // Only check challenge result if proof is approved or challenge is non-proof
-        if (proofData.status === 'Approve' || challenge?.Challenge_Type === 'Non-Proof') {
-          const resultResponse = await fetch(`http://192.168.141.177:3000/Challenges/check-challenge-result/${challengeId}`, {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-          const resultData = await resultResponse.json();
+        const resultData = await resultResponse.json();
 
-          console.log('Challenge Result:', resultData);
-          if (resultData.Status && resultData.Status !== 'Pending') {
-            setChallengeResult(resultData.Status);
-          } else {
-            setChallengeResult(null);
-          }
+        if (resultData.Status && resultData.Status !== 'Pending') {
+          setChallengeResult(resultData.Status);
         } else {
           setChallengeResult(null);
         }
-      } catch (error) {
-        console.error('Error fetching status:', error);
-        setProofStatus('To-be-submitted');
+      } else {
         setChallengeResult(null);
-        setLastSubmissionDate(null);
+      }
+    } catch (error) {
+      console.error('Error fetching status:', error);
+      setProofStatus('To-be-submitted');
+      setChallengeResult(null);
+      setLastSubmissionDate(null);
+    }
+  }, [challengeId]);
+
+  // Combined initial data loading
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setIsInitialLoading(true);
+      try {
+        const challengeData = await fetchChallengeDetails();
+        if (challengeData) {
+          await fetchProofStatus(challengeData);
+        }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+      } finally {
+        setIsInitialLoading(false);
       }
     };
 
-    if (challenge) {
-      fetchProofStatus();
+    loadInitialData();
+  }, [fetchChallengeDetails, fetchProofStatus]);
+
+  // Only refetch when submitting
+  useEffect(() => {
+    if (!isInitialLoading && challenge) {
+      fetchProofStatus(challenge);
     }
-  }, [challengeId, isSubmitting, challenge]);
+  }, [isSubmitting, challenge, isInitialLoading, fetchProofStatus]);
 
   const captureMedia = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -156,7 +175,7 @@ const ChallengeProofSubmission = () => {
       formData.append('challengeId', String(challengeId));
       formData.append('submissionDate', new Date().toISOString());
 
-      const response = await fetch('http://192.168.141.177:3000/Challenges/submit-proof', {
+      const response = await fetch('https://backend-hbwp.onrender.com/Challenges/submit-proof', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -180,7 +199,7 @@ const ChallengeProofSubmission = () => {
     }
   };
 
-  const shouldShowProofSubmission = () => {
+  const shouldShowProofSubmission = useMemo(() => {
     if (!challenge) return false;
     
     // For non-proof challenges, never show proof submission
@@ -209,7 +228,42 @@ const ChallengeProofSubmission = () => {
 
     // For rejected proofs or to-be-submitted, show submission
     return proofStatus === 'Reject' || proofStatus === 'To-be-submitted';
-  };
+  }, [challenge, challengeResult, proofStatus, lastSubmissionDate]);
+
+  // Skeleton Components
+  const HeaderSkeleton = () => (
+    <View style={styles.skeletonHeader}>
+      <View style={styles.skeletonIcon} />
+      <View style={styles.skeletonTitle} />
+      <View style={styles.skeletonIcon} />
+    </View>
+  );
+
+  const ChallengeInfoSkeleton = () => (
+    <View style={styles.skeletonChallengeInfo}>
+      <View style={styles.skeletonTextLine} />
+      <View style={[styles.skeletonTextLine, { width: '80%' }]} />
+      <View style={styles.skeletonDetailRow} />
+      <View style={styles.skeletonDetailRow} />
+      <View style={styles.skeletonDetailRow} />
+    </View>
+  );
+
+  const StatusSkeleton = () => (
+    <View style={styles.skeletonStatusContainer}>
+      <View style={styles.skeletonIconLarge} />
+      <View style={styles.skeletonStatusText} />
+      <View style={[styles.skeletonStatusText, { width: '70%', height: 16 }]} />
+    </View>
+  );
+
+  const ProofSubmissionSkeleton = () => (
+    <View style={styles.skeletonProofContainer}>
+      <View style={styles.skeletonSectionTitle} />
+      <View style={[styles.skeletonTextLine, { width: '90%', height: 14, marginBottom: 20 }]} />
+      <View style={styles.skeletonCaptureButton} />
+    </View>
+  );
 
   const renderWinUI = () => {
     return (
@@ -353,13 +407,18 @@ const ChallengeProofSubmission = () => {
   };
 
   const renderStatusMessage = () => {
+    // Show skeleton if still loading
+    if (proofStatus === null || challengeResult === undefined) {
+      return <StatusSkeleton />;
+    }
+
     // First check if challenge is completed (Won or Lose)
     if (challengeResult) {
       return challengeResult === 'Won' ? renderWinUI() : renderLoseUI();
     }
 
     // Check if we should show proof submission
-    if (shouldShowProofSubmission()) {
+    if (shouldShowProofSubmission) {
       return renderProofSubmission();
     }
 
@@ -402,10 +461,21 @@ const ChallengeProofSubmission = () => {
     }
   };
 
+  // Show full page skeleton during initial load
+  if (isInitialLoading) {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <HeaderSkeleton />
+        <ChallengeInfoSkeleton />
+        <StatusSkeleton />
+      </ScrollView>
+    );
+  }
+
   if (!challenge) {
     return (
       <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading challenge details...</Text>
+        <Text style={styles.loadingText}>Failed to load challenge details</Text>
       </View>
     );
   }
@@ -766,6 +836,86 @@ const styles = StyleSheet.create({
     height: 20,
     backgroundColor: '#FFD700',
     transform: [{ rotate: '45deg' }],
+  },
+  // Skeleton styles
+  skeletonHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  skeletonIcon: {
+    width: 24,
+    height: 24,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 4,
+  },
+  skeletonTitle: {
+    width: 150,
+    height: 24,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 4,
+  },
+  skeletonChallengeInfo: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  skeletonTextLine: {
+    height: 16,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 4,
+    marginBottom: 12,
+  },
+  skeletonDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  skeletonStatusContainer: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    width: '100%',
+  },
+  skeletonIconLarge: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 30,
+    marginBottom: 16,
+  },
+  skeletonStatusText: {
+    width: 200,
+    height: 20,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skeletonProofContainer: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  skeletonSectionTitle: {
+    width: 180,
+    height: 20,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 4,
+    marginBottom: 12,
+  },
+  skeletonCaptureButton: {
+    width: '100%',
+    height: 80,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    marginBottom: 20,
   },
 });
 

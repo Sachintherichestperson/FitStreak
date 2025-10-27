@@ -8,6 +8,7 @@ const Postmongo = require('../models/post-mongo');
 const Challengemongo = require('../models/Challenge-mongo');
 const isloggedin = require('../middleware/isloggein');
 const Proofmongo = require('../models/Proofmongo');
+const { sendNotification } = require('../functions/Notification')
 require('dotenv').config();
 
 cloudinary.config({
@@ -166,12 +167,18 @@ router.post('/:id/join', isloggedin, async (req, res) => {
 
             while (daysAdded < durationDays) {
                 date.setDate(date.getDate() + 1);
-                if (date.getDay() !== 0) { // skip Sundays (0 = Sunday)
+                if (date.getDay() !== 0) {
                     daysAdded++;
                 }
             }
 
             return date;
+        }
+
+        if (challenge.ChallengeLosers.includes(userId)){
+          return res.status(404).json({ error: "User already Lost the Challenge" });
+        }else if (challenge.ChallengeWinners.includes(userId)){
+          return res.status(404).json({ error: "User already Won the Challenge" });
         }
 
         const startDate = new Date();
@@ -198,6 +205,13 @@ router.post('/:id/join', isloggedin, async (req, res) => {
         challenge.Participants.push({ UserId: userId });
         await challenge.save();
         await user.save();
+
+        await sendNotification(
+          user.NotificationToken,
+          "Congrats Bro!!",
+          `You SuccessFully Joined the Challenge "${challenge.Title}"`
+        )
+
         res.json({ message: 'Challenge joined successfully' });
     } catch (error) {
         console.error('Error joining challenge:', error);
@@ -295,6 +309,7 @@ router.post('/submit-proof', upload.single('proofData'), isloggedin, async (req,
     res.status(500).json({ success: false, message: 'Error submitting proof' });
   }
 });
+
 router.get('/Proof-Status/:id', isloggedin, async (req, res) => {
   try {
     const challengeId = req.params.id;
@@ -318,10 +333,8 @@ router.get('/Proof-Status/:id', isloggedin, async (req, res) => {
     const submissionDate = lastSubmissionDate ? new Date(lastSubmissionDate).toISOString().split('T')[0] : null;
 
     if (submissionDate === today) {
-      // Submission was today → show its actual status
       status = activeChallenge.Proof.Status;
     } else {
-      // Submission was not today → reset status
       status = 'To-be-submitted';
     }
 
@@ -335,46 +348,25 @@ router.get('/Proof-Status/:id', isloggedin, async (req, res) => {
   }
 });
 
-
 router.get('/check-challenge-result/:id', isloggedin, async (req, res) => {
-  try {
-    const userId = req.user.id;
+   try{
     const challengeId = req.params.id;
-
-    const user = await Usermongo.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    const challengeEntry = user.ActiveChallenge.find(
-      c => c.challengeId.toString() === challengeId
-    );
-    if (!challengeEntry) return res.json({ Status: 'Pending' });
-
+    const userId = req.user.id;
     const challenge = await Challengemongo.findById(challengeId);
-    if (!challenge) return res.status(404).json({ error: 'Challenge not found' });
 
-    const now = new Date();
-    const endDate = challengeEntry.endDate;
+    let Status;
+    console.log(challenge.ChallengeLosers.some(loser => loser.UserId.toString() === userId.toString()))
 
-    // If challenge not yet ended, always show Pending
-    if (now < endDate) {
-      return res.json({ Status: 'Pending' });
+    if (challenge.ChallengeLosers.some(loser => loser.UserId.toString() === userId.toString())){
+      Status = "Lose"
+    }else if(challenge.ChallengeWinners.some(Winner => Winner.UserId.toString() === userId.toString())){
+      Status = "Won"
+    }else{
+      Status = "Pending"
     }
 
-    // Challenge has ended — evaluate result
-    const duration = challenge.Duration || 1;
-    const scanCount = challengeEntry.ChallengeScan || 0;
-
-    let Status = 'Lose'; // Default to lose
-
-    if (challenge.Challenge_Type === 'Non-Proof') {
-      if (scanCount >= duration) Status = 'Won';
-    } else if (challenge.Challenge_Type === 'Proof') {
-      if (scanCount >= duration) Status = 'Won';
-    }
-
-    console.log(Status);
     res.json({ Status });
-  } catch (error) {
+   }catch (error) {
     console.error('Error checking challenge result:', error);
     res.status(500).json({ error: 'Internal server error' });
   }

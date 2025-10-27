@@ -115,7 +115,7 @@ const FitStreakCommunity = () => {
   const fetchBackendData = async () => {
   try {
     const token = await AsyncStorage.getItem('Token');
-    const response = await fetch('http://192.168.141.177:3000/Community/', {
+    const response = await fetch('https://backend-hbwp.onrender.com/Community/', {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -138,8 +138,8 @@ const FitStreakCommunity = () => {
         // Flatten and normalize comments - ensure User is a string
         Comments: (post.Comment || []).map((c: any) => ({
           _id: c._id,
-          Content: c.Comment, // rename Comment -> Content for consistency
-          User: c.UserId?.username || 'Anonymous', // Extract username as string
+          Content: c.Comment,
+          User: 'Anonymous',
           CreatedAt: c.CreatedAt || new Date().toISOString(),
         })),
       }))
@@ -155,7 +155,7 @@ const FitStreakCommunity = () => {
   const fetchLeaderboardData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.141.177:3000/Community/Leaderboard', {
+      const response = await fetch('https://backend-hbwp.onrender.com/Community/Leaderboard', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -190,7 +190,7 @@ const FitStreakCommunity = () => {
   const ReactToPost = async (postId: string, reactionType: string) => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch(`http://192.168.141.177:3000/Community/Reaction/${postId}?type=${reactionType}`, {
+      const response = await fetch(`https://backend-hbwp.onrender.com/Community/Reaction/${postId}?type=${reactionType}`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -263,7 +263,7 @@ const FitStreakCommunity = () => {
     setIsCommentSubmitting(true);
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch(`http://192.168.141.177:3000/Community/Comment/${postId}`, {
+      const response = await fetch(`https://backend-hbwp.onrender.com/Community/Comment/${postId}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -454,7 +454,7 @@ const FitStreakCommunity = () => {
                 🔥 { item.Fire?.length || 0 }
               </Animated.Text>
             </TouchableOpacity>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.reactionBtn}
               onPress={() => ReactToPost(item._id, 'Boring')}
             >
@@ -465,7 +465,7 @@ const FitStreakCommunity = () => {
               ]}>
                 😴 { item.Boring?.length || 0 }
               </Animated.Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             
             {/* Comment Button */}
             <TouchableOpacity

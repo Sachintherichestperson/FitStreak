@@ -3,15 +3,16 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
     username: String,
     email: String,
+    Mobile: Number,
     NotificationToken: String,
     Location: {
-    latitude: {
-      type: Number,
+      latitude: {
+        type: Number,
+      },
+      longitude: {
+        type: Number,
+      },
     },
-    longitude: {
-      type: Number,
-    },
-  },
     TotalPost: { type: Number, default: 0 },
     password: String,
     Points: { type: Number, default: 0 },
@@ -32,14 +33,6 @@ const userSchema = new mongoose.Schema({
     }],
     DaysMissed: { type: Number, default: 0 },
     StreakLost: { type: Number, default: 0 },
-    Buddy: {
-        BuddyId: { type: mongoose.Schema.Types.ObjectId, ref: 'User'},
-        Date: { type: Date }
-    },
-    BuddyCode: {
-      type: String,
-      unique: true
-    },
     Anonymous_Post: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Post'

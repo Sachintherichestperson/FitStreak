@@ -47,8 +47,8 @@ const upload = multer({
 });
 
 router.get('/', isloggedin, async (req, res) => {
-    const user = await Usermongo.findById(req.user.id).populate('Buddy.BuddyId').populate('Anonymous_Post').populate('CurrentBadge');
-    const badgeInfo = Badgesfunc.getStreakBadge(user.Streak.Scan);
+    const user = await Usermongo.findById(req.user.id).populate('Anonymous_Post').populate('CurrentBadge');
+    const badgeInfo = Badgesfunc.getStreakBadge(user.Streak?.Track);
 
     const Level = user.CurrentBadge?.name || badgeInfo.currentBadge.name;
     const Badge = user.CurrentBadge?.emoji || badgeInfo.currentBadge.icon;
@@ -56,9 +56,7 @@ router.get('/', isloggedin, async (req, res) => {
     const posts = user.Anonymous_Post;
     const Coins = user.FitCoins;
 
-    const Buddy = user.Buddy.BuddyId;
-
-    res.status(200).json({ user, posts, Level, Buddy, Badge, Coins });
+    res.status(200).json({ user, posts, Level, Badge, Coins });
 });
 
 router.post('/Create-Post',upload.single("image"), isloggedin, async (req, res) => {
@@ -67,11 +65,10 @@ router.post('/Create-Post',upload.single("image"), isloggedin, async (req, res) 
 
     const post = new Postmongo({ 
       Content,
-      user: user._id, 
+      User: user._id, 
       CreatedAt: new Date(), 
       Biceps: [], 
-      Fire: [], 
-      Boring: [] 
+      Fire: [],
     });
 
     if (req.file) {
@@ -86,73 +83,6 @@ router.post('/Create-Post',upload.single("image"), isloggedin, async (req, res) 
     res.status(201).json({ message: 'Post created successfully' });
 });
 
-router.post('/update-buddy', isloggedin, async (req, res) => {
-  try {
-    const { buddyId } = req.body;
 
-    if (!buddyId) {
-      return res.status(400).json({ message: 'Buddy code is required' });
-    }
-
-    const Buddy = await Usermongo.findOne({ BuddyCode: buddyId });
-    if (!Buddy) {
-      return res.status(404).json({ message: 'Buddy not found' });
-    }
-
-    const user = await Usermongo.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Prevent self-buddying
-    if (user._id.equals(Buddy._id)) {
-      return res.status(400).json({ message: 'You cannot set yourself as your buddy' });
-    }
-
-    const now = new Date();
-
-    // ✅ Set buddy relation both sides
-    user.set('Buddy.BuddyId', Buddy._id);
-    user.set('Buddy.Date', now);
-
-    Buddy.set('Buddy.BuddyId', user._id);
-    Buddy.set('Buddy.Date', now);
-
-    await Promise.all([user.save(), Buddy.save()]);
-
-    res.status(200).json({ message: 'Buddy updated successfully' });
-  } catch (error) {
-    console.error('Error updating buddy:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-router.post('/remove-buddy', isloggedin, async function (req, res) {
-  try {
-    const currentUser = await Usermongo.findById(req.user.id);
-
-    if (!currentUser.Buddy || !currentUser.Buddy.BuddyId) {
-      return res.status(400).json({ message: "No buddy to remove." });
-    }
-
-    const buddyUser = await Usermongo.findById(currentUser.Buddy.BuddyId);
-
-    if (!buddyUser) {
-      return res.status(404).json({ message: "Buddy not found." });
-    }
-
-    currentUser.Buddy = {};
-
-    buddyUser.Buddy = {};
-
-    await currentUser.save();
-    await buddyUser.save();
-
-    return res.status(200).json({ message: "Buddy removed successfully." });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-});
 
 module.exports = router;

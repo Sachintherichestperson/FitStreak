@@ -4,14 +4,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Animated,
-  Easing,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Animated,
+    Easing,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 interface Product {
@@ -49,7 +49,7 @@ const ProductDetail = () => {
     try {
       const token = await AsyncStorage.getItem('Token');
 
-      const response = await fetch('http://192.168.141.177:3000/Store/Cart', {
+      const response = await fetch('https://backend-hbwp.onrender.com/Store/Cart', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

@@ -69,33 +69,33 @@ router.get('/', isloggedin, async (req, res) => {
   }
 });
 
-router.get('/Accountability-Buddy', isloggedin, async(req, res) => {
-  try {
-    const user = await Usermongo.findById(req.user._id).populate('Buddy.BuddyId');
-    if (!user) return res.status(404).json({ error: "User not found" });
+// router.get('/Accountability-Buddy', isloggedin, async(req, res) => {
+//   try {
+//     const user = await Usermongo.findById(req.user._id).populate('Buddy.BuddyId');
+//     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const Buddy = user;
-    if (!Buddy) return res.status(404).json({ error: "Buddy not found" });
+//     const Buddy = user;
+//     if (!Buddy) return res.status(404).json({ error: "Buddy not found" });
 
-    res.json({
-      Buddy
-    });
+//     res.json({
+//       Buddy
+//     });
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// });
 
-router.get('/Duo-Ranking', isloggedin, async(req, res) => {
-  try {
-    const result = await getDuosRanking();
-    res.json(result);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+// router.get('/Duo-Ranking', isloggedin, async(req, res) => {
+//   try {
+//     const result = await getDuosRanking();
+//     res.json(result);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: "Server error" });
+//   }
+// });
 
 
 module.exports = router;

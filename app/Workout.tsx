@@ -1,7 +1,7 @@
 import { FontAwesome, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Animated,
@@ -19,6 +19,7 @@ const { width } = Dimensions.get('window');
 const WorkoutPlan = () => {
   const router = useRouter();
   const pulseAnim = new Animated.Value(1);
+  const { refreshChallenges } = useLocalSearchParams();
   
   // Define types based on your backend schema
   type Exercise = {
@@ -50,6 +51,8 @@ const WorkoutPlan = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentDayWorkout, setCurrentDayWorkout] = useState<DayWorkout | null>(null);
 
+
+
   Animated.loop(
     Animated.sequence([
       Animated.timing(pulseAnim, {
@@ -76,7 +79,7 @@ const WorkoutPlan = () => {
     const fetchWorkoutPlan = async () => {
       try {
         const token = await AsyncStorage.getItem('Token');
-        const response = await fetch('http://192.168.141.177:3000/Workout/', {
+        const response = await fetch('https://backend-hbwp.onrender.com/Workout/', {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -125,7 +128,7 @@ const WorkoutPlan = () => {
   const saveWorkoutCompletion = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      await fetch('http://192.168.141.177:3000/Workout/log-workout', {
+      await fetch('https://backend-hbwp.onrender.com/Workout/log-workout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -230,9 +233,9 @@ const WorkoutPlan = () => {
             <Ionicons name="arrow-back" size={24} color="#f0f0f0" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Today's Workout</Text>
-          <TouchableOpacity onPress={() => router.push('/WorkoutSettings')}>
+          {/* <TouchableOpacity onPress={() => router.push('/WorkoutSettings')}>
             <FontAwesome name="cog" size={24} color="#f0f0f0" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
         
         <View style={styles.noWorkoutContainer}>

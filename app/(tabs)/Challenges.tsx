@@ -37,7 +37,7 @@ export default function ChallengesScreen() {
   const fetchBackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.141.177:3000/Challenges/', {
+      const response = await fetch('https://backend-hbwp.onrender.com/Challenges/', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -237,11 +237,11 @@ export default function ChallengesScreen() {
           data={data}
           renderItem={renderChallengeCard}
           keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          scrollEnabled={false}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.challengesList}
-          snapToInterval={width * 0.9 / 2 + 15}
-          decelerationRate="fast"
         />
       </View>
     );
@@ -261,52 +261,64 @@ export default function ChallengesScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      <ScrollView style={styles.scrollView}>
-        {/* Page Header */}
-        <View style={styles.pageHeader}>
-          <View style={styles.pageTitle}>
-            <Text style={styles.pageTitleText}>Challenges</Text>
-            <Text style={styles.pageSubtitle}>Push your limits with community</Text>
-          </View>
-          <TouchableOpacity style={styles.userAvatar} onPress={() => router.push('/Profile')}>
-            <FontAwesome name="user" size={20} color="#f0f0f0" />
-          </TouchableOpacity>
-        </View>
-        
-        {/* Challenge Tabs */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.challengeTabs}
-        >
-          {tabItems.map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              style={[
-                styles.tabItem,
-                activeTab === tab.id && styles.tabItemActive
-              ]}
-              onPress={() => setActiveTab(tab.id)}
+      <FlatList
+        style={styles.scrollView}
+        data={[]}
+        renderItem={null}
+        ListHeaderComponent={
+          <>
+            {/* Page Header */}
+            <View style={styles.pageHeader}>
+              <View style={styles.pageTitle}>
+                <Text style={styles.pageTitleText}>Challenges</Text>
+                <Text style={styles.pageSubtitle}>Push your limits with community</Text>
+              </View>
+              <TouchableOpacity style={styles.userAvatar} onPress={() => router.push('/Profile')}>
+                <FontAwesome name="user" size={20} color="#f0f0f0" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Challenge Tabs */}
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.challengeTabs}
             >
-              <Text style={[
-                styles.tabText,
-                activeTab === tab.id && styles.tabTextActive
-              ]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        
-        {/* Sections */}
-        {renderSection('Your Active Challenges', activeChallenges)}
-        {renderSection('Recommended For You', recommendedChallenges)}
-        {renderSection('Gym Challenges', GymChallenges)}
-        {renderSection('Completed Challenges', completedChallenges, false)}
-        
-        {/* Spacer for FAB */}
-        <View style={{ height: 100 }} />
-      </ScrollView>
+              {tabItems.map((tab) => (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={[
+                    styles.tabItem,
+                    activeTab === tab.id && styles.tabItemActive
+                  ]}
+                  onPress={() => setActiveTab(tab.id)}
+                >
+                  <Text style={[
+                    styles.tabText,
+                    activeTab === tab.id && styles.tabTextActive
+                  ]}>
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        }
+        ListFooterComponent={
+          <>
+            {/* Sections */}
+            {renderSection('Your Active Challenges', activeChallenges)}
+            {renderSection('Recommended For You', recommendedChallenges)}
+            {renderSection('Gym Challenges', GymChallenges)}
+            {renderSection('Completed Challenges', completedChallenges, false)}
+            
+            {/* Spacer for FAB */}
+            <View style={{ height: 100 }} />
+          </>
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.mainContent}
+      />
     </SafeAreaView>
   );
 }
@@ -419,6 +431,10 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 14,
     color: '#00f5ff',
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    marginBottom: 15,
   },
   challengesList: {
     paddingBottom: 25,

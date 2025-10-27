@@ -4,14 +4,15 @@ const Usermongo = require('../models/User-mongo');
 const Postmongo = require('../models/post-mongo');
 const isloggedin = require('../middleware/isloggein');
 const Badgesfunc = require('../functions/Badges-func');
+const { sendNotification } = require("../functions/Notification");
 const util = require('util');
-
+const cron = require('node-cron');
 
 router.get('/', async (req, res) => {
     try {
         const posts = await Postmongo.find()
-            .populate("User", "username") // only bring username from main post's user
-            .populate("Comment.UserId", "username"); // also bring username from comment's user
+            .populate("User", "username")
+            .populate("Comment.UserId", "username").sort({ CreatedAt: -1 });
 
         const now = new Date();
 
@@ -28,11 +29,18 @@ router.get('/', async (req, res) => {
                 timeAgo = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
             }
 
-            return {
+            // Ensure all reaction arrays exist with proper defaults
+            const postData = {
                 ...post._doc,
-                timeAgo
+                timeAgo,
+                Biceps: post.Biceps || [],
+                Fire: post.Fire || [],
+                Boring: post.Boring || [] // Add empty array for Boring
             };
+
+            return postData;
         });
+        console.log(postsWithTimeAgo);
 
         res.status(200).json({ posts: postsWithTimeAgo });
     } catch (err) {
@@ -44,20 +52,21 @@ router.get('/', async (req, res) => {
 async function LeaderBoard() {
   try {
     const topUsers = await Usermongo.find()
-      .sort({ Points: -1, 'Streak.Scan': -1 })
+      .sort({ Points: -1, 'Streak.Track': -1 })
       .limit(10)
       .populate('CurrentBadge', 'emoji name');
 
         const leaderboard = topUsers.map((user, index) => {
-          const badgeInfo = Badgesfunc.getStreakBadge(user.Streak?.Scan || 0);
+          const badgeInfo = Badgesfunc.getStreakBadge(user.Streak?.Track || 0);
           
           return {
             rank: index + 1,
             name: user.username,
-            streak: user.Streak?.Scan || 0,
+            streak: user.Streak?.Track || 0,
             points: user.Points || 0,
             badge: user.CurrentBadge?.name || badgeInfo.currentBadge.name,
             emoji: user.CurrentBadge?.emoji || badgeInfo.currentBadge.icon,
+            Token: user.NotificationToken
           };
         });
 
@@ -69,6 +78,36 @@ async function LeaderBoard() {
   }
 }
 
+async function sendLeaderboardNotifications() {
+  const leaderboard = await LeaderBoard();
+
+  for (const user of leaderboard) {
+    if (user.Token) {
+      const message = user.rank === 1
+        ? `🏆 Congrats ${user.name}! You're #1 on the leaderboard with ${user.points} points! Keep slaying! ${user.emoji}`
+        : `🎉 Hey ${user.name}, you are ranked #${user.rank} with ${user.points} points! Keep pushing and climb higher! ${user.emoji}`;
+
+      try {
+        await sendNotification(user.Token, "Leaderboard Update!", message);
+      } catch (err) {
+        console.error(`Failed to send notification to ${user.name}:`, err);
+      }
+    }
+  }
+}
+
+cron.schedule('24 16 * * *', async () => {
+  try {
+    console.log('Running LeaderBoard cron job...');
+    await sendLeaderboardNotifications();
+    console.log('Leaderboard notifications sent successfully.');
+  } catch (error) {
+    console.error('Error in LeaderBoard cron job:', error);
+  }
+}, {
+  timezone: 'Asia/Kolkata'
+});
+
 router.get('/Leaderboard', isloggedin, async (req, res) => {
   try {
     const leaderboard = await LeaderBoard();
@@ -79,24 +118,25 @@ router.get('/Leaderboard', isloggedin, async (req, res) => {
       return res.status(200).json({ leaderboard, currentUserRank: null });
     }
 
-    const badgeInfo = Badgesfunc.getStreakBadge(currentUser.Streak.Scan);
+    const badgeInfo = Badgesfunc.getStreakBadge(currentUser.Streak.Track);
     
     const userRank = await Usermongo.countDocuments({
       $or: [
         { Points: { $gt: currentUser.Points } },
         { 
           Points: currentUser.Points,
-          'Streak.Scan': { $gt: currentUser.Streak?.Scan || 0 }
+          'Streak.Track': { $gt: currentUser.Streak?.Track || 0 }
         }
       ]
     }) + 1;
+
 
     res.status(200).json({ 
       leaderboard,
       currentUserRank: {
         rank: userRank,
         name: currentUser.username,
-        streak: currentUser.Streak?.Scan || 0,
+        streak: currentUser.Streak?.Track || 0,
         points: currentUser.Points || 0,
         badge: currentUser.CurrentBadge?.name || badgeInfo.currentBadge.name,
         emoji: currentUser.CurrentBadge?.emoji ||  badgeInfo.currentBadge.emoji,
@@ -114,7 +154,7 @@ router.get('/Reaction/:postId', isloggedin, async (req, res) => {
   const userId = req.user._id;
   const user = await Usermongo.findById(userId);
 
-  const validReactions = ['Biceps', 'Fire', 'Boring'];
+  const validReactions = ['Biceps', 'Fire'];
   if (!validReactions.includes(type)) {
     return res.status(400).json({ message: 'Invalid reaction type' });
   }

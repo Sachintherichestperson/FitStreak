@@ -64,7 +64,7 @@ function getNextBadges(userStreak) {
   
   for (let i = 0; i < badges.length; i++) {
     if (userStreak >= badges[i].minStreak) {
-      continue; // Skip badges already earned
+      continue;
     }
     
     if (!foundCurrent || nextBadges.length < 4) {
@@ -81,7 +81,7 @@ function getNextBadges(userStreak) {
 }
 
 const specialbadges = [
-  { name: "Streak Hero", emoji: "🏆", description: "Completed a 30-day streak without breaking.", type: "special", instruction: '30-day Streak without breaking', condition: user => user.Streak?.Scan >= 30 },
+  { name: "Streak Hero", emoji: "🏆", description: "Completed a 30-day streak without breaking.", type: "special", instruction: '30-day Streak without breaking', condition: user => user.Streak?.Track >= 30 },
   { name: "Challenge King", emoji: "👑", description: "Conquered 5 challenges like a pro.", type: "special", instruction: 'Win 5 challenges', condition: user => user.challengeWins?.length >= 5 },
   { name: "Daily Beast", emoji: "💪", description: "Logged 7 days in a row.", type: "special", instruction: 'Login for 7 Days', condition: user => user.loginStreak >= 7 },
   { name: "Your First Post", emoji: "📸", description: "Uploaded your first post.", type: "special", instruction: 'Upload First Post', condition: user => user.Anonymous_Post?.length >= 1 },
@@ -124,7 +124,6 @@ async function getSpecialBadges() {
   await Promise.all(badgeAssignments);
 }
 
-// getSpecialBadges()
 
 
 module.exports = { 

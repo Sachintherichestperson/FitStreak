@@ -1,4 +1,4 @@
-import { FontAwesome, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
@@ -78,14 +78,11 @@ const FitStreakBadges = () => {
   const [badgeData, setBadgeData] = React.useState<BadgeData | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [buddyData, setBuddyData] = React.useState<any>(null);
-  const [hasBuddy, setHasBuddy] = React.useState(false);
-  const [duoRankings, setDuoRankings] = React.useState<any[]>([]);
 
   const fetchBadgeData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.141.177:3000/Badges/', {
+      const response = await fetch('https://backend-hbwp.onrender.com/Badges/', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -141,87 +138,10 @@ const FitStreakBadges = () => {
     }
   };
 
-  const fetchBuddyData = async () => {
-    try {
-      const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.141.177:3000/Badges/Accountability-Buddy', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch buddy data');
-      }
-      
-      // Check if user has a buddy
-      if (data.Buddy && data.Buddy.Buddy && data.Buddy.Buddy.BuddyId) {
-        setBuddyData(data.Buddy);
-        setHasBuddy(true);
-      } else {
-        setHasBuddy(false);
-      }
-      
-    } catch (err) {
-      setError(err.message);
-      setHasBuddy(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchDuoRankings = async () => {
-    try {
-      const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.141.177:3000/Badges/Duo-Ranking', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch duo rankings');
-      }
-      
-      if (data.success && data.data) {
-        // Process the data to calculate average streak
-        const processedRankings = data.data.map((duo: any, index: number) => {
-          const avgStreak = Math.round((duo.streak1 + duo.streak2) / 2);
-          return {
-            rank: index + 1,
-            names: `${duo.username1} & ${duo.username2}`,
-            streak: avgStreak,
-            avatars: ['👦', '👦'], // Default avatars, you can customize based on user data
-            isYou: false // You'll need to determine if this is the current user
-          };
-        });
-        
-        setDuoRankings(processedRankings);
-      }
-      
-    } catch (err) {
-      console.error('Error fetching duo rankings:', err);
-      // Fallback to mock data if API fails
-      setDuoRankings([
-        { rank: 1, names: 'Priya & Rohan', streak: 42, avatars: ['👩', '👨'] },
-        { rank: 2, names: 'Arjun & Vikram', streak: 38, avatars: ['👨', '👴'] },
-        { rank: 3, names: 'You & Aman', streak: 34, avatars: ['👦', '👦'], isYou: true },
-        { rank: 4, names: 'Neha & Ananya', streak: 28, avatars: ['👩', '👩'] },
-      ]);
-    }
-  };
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
-    Promise.all([fetchBadgeData(), fetchBuddyData(), fetchDuoRankings()])
+    Promise.all([fetchBadgeData()])
       .then(() => setRefreshing(false))
       .catch(() => setRefreshing(false));
   }, []);
@@ -239,9 +159,7 @@ const FitStreakBadges = () => {
   });
 
   React.useEffect(() => {
-    fetchBuddyData();
     fetchBadgeData();
-    fetchDuoRankings();
   }, []);
 
   // Start pulse animation
@@ -347,8 +265,6 @@ const FitStreakBadges = () => {
         <Text style={styles.errorText}>Error loading badges: {error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => {
           fetchBadgeData();
-          fetchBuddyData();
-          fetchDuoRankings();
         }}>
           <Text style={styles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
@@ -480,107 +396,6 @@ const FitStreakBadges = () => {
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* Buddy Stats - Only show if user has a buddy */}
-        {hasBuddy && buddyData && (
-          <LinearGradient
-            colors={['#121212', '#1a1a1a']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.buddyCard}
-          >
-            <View style={styles.buddyHeader}>
-              <Text style={styles.buddyTitle}>Accountability Buddy</Text>
-              <View style={styles.streakCount}>
-                <FontAwesome name="fire" size={16} color="#00ff9d" />
-                <Text style={styles.streakText}>{buddyData.Buddy?.BuddyId?.Streak?.Scan || 0}-day streak</Text>
-              </View>
-            </View>
-            <View style={styles.buddyInfo}>
-              <View style={styles.buddyAvatar}>
-                <FontAwesome name="user" size={24} color="#00ff9d" />
-              </View>
-              <View>
-                <Text style={styles.buddyName}>
-                  {buddyData.Buddy?.BuddyId?.username}
-                </Text>
-                <Text style={styles.buddyStatus}>
-                  Your gym partner since {new Date(buddyData.Buddy?.Date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.comparisonBars}>
-              <View style={styles.comparisonItem}>
-                <Text style={styles.comparisonLabel}>You</Text>
-                <View style={styles.comparisonBarContainer}>
-                  <View 
-                    style={[
-                      styles.comparisonBar, 
-                      styles.youBar,
-                      { width: `${Math.min(100, buddyData.Streak?.Scan || 0)}%` }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.comparisonValue}>{buddyData.Streak?.Scan || 0}%</Text>
-              </View>
-              <View style={styles.comparisonItem}>
-                <Text style={styles.comparisonLabel}>{buddyData.Buddy?.BuddyId?.username || 'Buddy'}</Text>
-                <View style={styles.comparisonBarContainer}>
-                  <View 
-                    style={[
-                      styles.comparisonBar, 
-                      styles.buddyBar,
-                      { width: `${Math.min(100, buddyData.Buddy?.BuddyId?.Streak?.Scan || 0)}%` }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.comparisonValue}>{buddyData.Buddy?.BuddyId.Streak?.Scan || 0}%</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        )}
-
-        <Text style={styles.sectionTitle}>Duo Rankings</Text>
-        <LinearGradient
-          colors={['#121212', '#1a1a1a']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.duoCard}
-        >
-          {duoRankings.map((duo, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.duoItem, duo.isYou && styles.youDuoItem]}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  styles.duoRank,
-                  duo.rank === 1 && styles.goldRank,
-                  duo.rank === 2 && styles.silverRank,
-                  duo.rank === 3 && styles.bronzeRank,
-                ]}
-              >
-                {duo.rank}
-              </Text>
-              <View style={styles.duoAvatars}>
-                <View style={styles.duoAvatar}>
-                  <Text style={{ fontSize: 16 }}>{duo.avatars[0]}</Text>
-                </View>
-                <View style={[styles.duoAvatar, styles.secondAvatar]}>
-                  <Text style={{ fontSize: 16 }}>{duo.avatars[1]}</Text>
-                </View>
-              </View>
-              <View style={styles.duoInfo}>
-                <Text style={styles.duoNames}>{duo.names}</Text>
-                <View style={styles.duoStreak}>
-                  <FontAwesome name="fire" size={14} color="#00ff9d" />
-                  <Text style={styles.duoStreakText}>{duo.streak} Day Avg Streak</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </LinearGradient>
       </Animated.ScrollView>
     </SafeAreaView>
   );

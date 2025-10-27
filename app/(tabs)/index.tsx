@@ -2,7 +2,7 @@ import { FontAwesome, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Animated,
@@ -33,6 +33,7 @@ const { width } = Dimensions.get('window');
 const FitPulseApp = () => {
   const router = useRouter();
   const pulseAnim = new Animated.Value(1);
+  const { refreshChallenges } = useLocalSearchParams();
   const [User, setUser] = useState<{ username?: string } | null>(null);
   const [streak, setStreak] = useState('0');
   const [challenges, setChallenges] = useState([]);
@@ -76,6 +77,14 @@ const FitPulseApp = () => {
     ])
   ).start();
 
+  useEffect(() => {
+    if (refreshChallenges) {
+      fetchBackendData(),
+      BackendData(),
+      fetchTodayPlan()
+    }
+  }, [refreshChallenges]);
+
   const registerForPushNotificationsAsync = async () => {
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -107,7 +116,7 @@ const FitPulseApp = () => {
     
     if (userToken) {
       try {
-        await fetch('http://192.168.141.177:3000/Home/save-push-token', {
+        await fetch('https://backend-hbwp.onrender.com/Home/save-push-token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -139,7 +148,7 @@ const FitPulseApp = () => {
 const fetchTodayPlan = async () => {
   try {
     const token = await AsyncStorage.getItem('Token');
-    const response = await fetch('http://192.168.141.177:3000/Home/plan', {
+    const response = await fetch('https://backend-hbwp.onrender.com/Home/plan', {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -162,7 +171,7 @@ const fetchTodayPlan = async () => {
   const fetchBackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.141.177:3000/Home/',{
+      const response = await fetch('https://backend-hbwp.onrender.com/Home/',{
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -184,7 +193,7 @@ const fetchTodayPlan = async () => {
   const BackendData = async () => {
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.141.177:3000/Home/Active-Challenges', {
+      const response = await fetch('https://backend-hbwp.onrender.com/Home/Active-Challenges', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,

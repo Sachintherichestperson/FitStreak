@@ -74,7 +74,7 @@ const WorkoutInput = () => {
       return;
     }
     
-    const response = await fetch("http://192.168.141.177:3000/Workout/Add/workouts", {
+    const response = await fetch("https://backend-hbwp.onrender.com/Workout/Add/workouts", {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -155,7 +155,7 @@ const WorkoutInput = () => {
         return;
       }
       
-      const response = await fetch(`http://192.168.141.177:3000/Workout/Add/workouts/${id}`, {
+      const response = await fetch(`https://backend-hbwp.onrender.com/Workout/Add/workouts/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -207,7 +207,7 @@ const WorkoutInput = () => {
           }
         };
         
-        const response = await fetch("http://192.168.141.177:3000/Workout/Add/workouts", {
+        const response = await fetch("https://backend-hbwp.onrender.com/Workout/Add/workouts", {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -222,10 +222,9 @@ const WorkoutInput = () => {
       }
       
       Alert.alert('Success', 'Workout plan saved successfully!');
-      // Refresh existing workouts
       fetchExistingWorkouts();
-      // Clear the form
       setExercises([]);
+      
     } catch (error) {
       console.error('Error saving workout plan:', error);
       Alert.alert('Error', 'Failed to save workout plan');

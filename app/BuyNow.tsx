@@ -4,16 +4,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 interface Product {
@@ -198,7 +198,7 @@ const BuyNow = () => {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const response = await fetch('http://192.168.141.177:3000/Store/Orders', {
+      const response = await fetch('https://backend-hbwp.onrender.com/Store/Orders', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

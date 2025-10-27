@@ -106,7 +106,7 @@ const BuyNow = () => {
             
             // Here you would typically make an API call to your backend
             // const token = await AsyncStorage.getItem('Token');
-            // const response = await fetch('http://192.168.141.177:3000/Store/purchase', {
+            // const response = await fetch('https://backend-hbwp.onrender.com/Store/purchase', {
             //     method: 'POST',
             //     headers: {
             //         Authorization: `Bearer ${token}`,

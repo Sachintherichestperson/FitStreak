@@ -23,7 +23,7 @@ const DEFAULT_MEAL_TYPES = [
   { id: 'dinner', name: 'Dinner', time: '20:00', isCustom: false }
 ];
 
-const API_BASE_URL = 'http://192.168.141.177:3000/Diet';
+const API_BASE_URL = 'https://backend-hbwp.onrender.com/Diet';
 
 // Helper functions
 const createInitialDietPlan = () => {

@@ -99,9 +99,6 @@ const FitStreakProfile = () => {
   const [walletAction, setWalletAction] = useState('');
   const [convertAmount, setConvertAmount] = useState('');
   const [addAmount, setAddAmount] = useState('');
-  const [buddySearch, setBuddySearch] = useState(''); 
-  const [showBuddyModal, setShowBuddyModal] = useState(false);
-  const [buddy, setBuddy] = useState<BuddyInfo | null>(null);
   const [showPostModal, setShowPostModal] = useState(false);
   const [postContent, setPostContent] = useState('');
   const [postImage, setPostImage] = useState<string | null>(null);
@@ -117,7 +114,7 @@ const FitStreakProfile = () => {
   const BackendData = async () => {
     const token = await AsyncStorage.getItem('Token');
     try {
-      const response = await fetch('http://192.168.141.177:3000/Profile/',{
+      const response = await fetch('https://backend-hbwp.onrender.com/Profile/',{
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -131,20 +128,9 @@ const FitStreakProfile = () => {
       setLevel(data.Level);
       setCurrentBadge(data.Badge);
       setPostCount(data.user.TotalPost || 0);
-      setStreak(data.user.Streak?.Scan || 0);
+      setStreak(data.user.Streak?.Track || 0);
       setBadges(data.user.Badges.length || 0);
       setFitCoins(data.Coins || 0);
-      
-      if (data.user.Buddy?.BuddyId) {
-        setBuddy({
-          name: data.Buddy?.username,
-          id: data.Buddy?._id,
-          streak: data.Buddy?.Streak?.Scan || 0,
-          avatar: data.Buddy?.avatar
-        });
-      } else {
-        setBuddy(null);
-      }
 
       const postsWithTimeAgo = data.posts.map((post: any) => {
         const createdAt = new Date(post.CreatedAt);
@@ -165,8 +151,8 @@ const FitStreakProfile = () => {
           timeAgo,
           isLiked: false,
           Fire: post.Fire?.length || 0,
-          Biceps: post.Biceps.length || 0,
-          comments: post.comments || [],
+          Biceps: post.Biceps?.length || 0,
+          comments: post.Comment?.length || 0,
           showComments: false,
           commentText: ''
         };
@@ -184,63 +170,7 @@ const FitStreakProfile = () => {
     BackendData();
   }, []);
 
-  const confirmBuddyChange = async (specialCode: string) => {
-    try {
-      const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.141.177:3000/Profile/update-buddy', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        body: JSON.stringify({
-          buddyId: specialCode
-        }),
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setBuddy({
-          name: data.name,
-          id: data.id,
-          streak: 1,
-          avatar: data.avatar,
-        });
-        setShowBuddyModal(false);
-        setBuddySearch('');
-        BackendData(); // Refresh data
-      } else {
-        Alert.alert('Error', 'Invalid Code or Failed to update buddy');
-      }
-    } catch (error) {
-      console.error('Error updating buddy:', error);
-      Alert.alert('Error', 'Could not connect to server');
-    }
-  };
-
-  const removeBuddy = async () => {
-    try {
-      const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('http://192.168.141.177:3000/Profile/remove-buddy', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        setBuddy(null);
-        Alert.alert('Success', 'Buddy removed successfully');
-        BackendData(); // Refresh data
-      } else {
-        Alert.alert('Error', 'Failed to remove buddy');
-      }
-    } catch (error) {
-      console.error('Error removing buddy:', error);
-      Alert.alert('Error', 'Could not connect to server');
-    }
-  };
 
   const handleSaveProfile = async () => {
     if (!name.trim()) {
@@ -252,7 +182,7 @@ const FitStreakProfile = () => {
     try {
       const token = await AsyncStorage.getItem('Token');
       
-      const response = await fetch('http://192.168.141.177:3000/Profile/Profile-Edit', {
+      const response = await fetch('https://backend-hbwp.onrender.com/Profile/Profile-Edit', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -314,10 +244,6 @@ const FitStreakProfile = () => {
     setAddAmount('');
   };
 
-  const handleChangeBuddy = () => {
-    setShowBuddyModal(true);
-  };
-
   const UserLoggingOut = () => {
     AsyncStorage.removeItem('Token');
     router.push('/Register');
@@ -376,7 +302,7 @@ const FitStreakProfile = () => {
       } as any);
     }
 
-    const response = await fetch('http://192.168.141.177:3000/Profile/Create-Post', {
+    const response = await fetch('https://backend-hbwp.onrender.com/Profile/Create-Post', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -458,7 +384,7 @@ const FitStreakProfile = () => {
 
     try {
       const token = await AsyncStorage.getItem('Token');
-      const response = await fetch(`http://192.168.141.177:3000/Profile/posts/${postId}/comments`, {
+      const response = await fetch(`https://backend-hbwp.onrender.com/Profile/posts/${postId}/comments`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -524,7 +450,7 @@ const FitStreakProfile = () => {
           >
             <Text>💬</Text>
             <Text style={styles.postActionText}>
-              {item.comments.length}
+              {item.comments}
             </Text>
           </TouchableOpacity>
           
@@ -701,105 +627,10 @@ const FitStreakProfile = () => {
           )}
         </View>
 
-        {/* Wallet Section */}
-        {/* <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Wallet</Text>
-          </View>
-          
-          <View style={styles.card}>
-            <Text style={styles.walletBalance}>{fitCoins.toLocaleString()} FitCoins </Text>
-            <View style={styles.walletActions}>
-            </View>
-          </View>
-        </View> */}
-
-        {/* Buddy Section */}
-        {/* {buddy && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Workout Buddy</Text>
-              <View style={styles.buddyActionButtons}>
-                <TouchableOpacity onPress={handleChangeBuddy}>
-                  <Text style={styles.viewAll}>Change</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={removeBuddy}>
-                  <Text style={styles.removeBuddyText}>Remove</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.cardTitle}>
-                  <FontAwesome name="users" size={16} color="#00C896" />
-                  <Text style={styles.cardTitleText}>Linked Buddy</Text>
-                </View>
-                <View style={styles.cardStatus}>
-                  <Text style={styles.cardStatusText}>Active</Text>
-                </View>
-              </View>
-              
-              <View style={styles.buddyInfo}>
-                <Image
-                  source={{ uri: buddy.avatar || 'https://randomuser.me/api/portraits/men/42.jpg' }}
-                  style={styles.buddyAvatar}
-                />
-                <View>
-                  <Text style={styles.buddyName}>{buddy.name}</Text>
-                  <View style={styles.buddyStreak}>
-                    <FontAwesome name="fire" size={13} color="#0084FF" />
-                    <Text style={styles.buddyStreakText}>{buddy.streak} day streak together</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-        )} */}
-
-        {/* Add Buddy Section if no buddy exists */}
-        {/* {!buddy && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Workout Buddy</Text>
-              <TouchableOpacity onPress={handleChangeBuddy}>
-                <Text style={styles.viewAll}>Add</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.card}>
-              <View style={styles.noBuddyContainer}>
-                <MaterialCommunityIcons name="account-question" size={40} color="#888" />
-                <Text style={styles.noBuddyText}>No workout buddy linked</Text>
-                <TouchableOpacity 
-                  style={styles.addBuddyButton}
-                  onPress={handleChangeBuddy}
-                >
-                  <Text style={styles.addBuddyButtonText}>Add Workout Buddy</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )} */}
-
-        {/* Settings Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Settings</Text>
           
           <View style={styles.settingsList}>
-            {/* {settingsItems.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.settingsItem}
-                onPress={() => Alert.alert(`${item.name} pressed`)}
-              >
-                <View style={styles.settingsIcon}>
-                  <FontAwesome name={item.icon as any} size={16} color="#00C896" />
-                </View>
-                <Text style={styles.settingsText}>{item.name}</Text>
-                <FontAwesome name="chevron-right" size={12} color="#888" />
-              </TouchableOpacity>
-            ))} */}
             <TouchableOpacity
               style={styles.settingsItem}
               onPress={handleLogout}
@@ -947,44 +778,6 @@ const FitStreakProfile = () => {
         </View>
       </Modal>
 
-      {/* Buddy Modal */}
-      <Modal
-        visible={showBuddyModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowBuddyModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Enter Buddy Code</Text>
-            <Text style={styles.modalText}>
-              Ask your friend for their code and enter it below to connect as buddies.
-            </Text>
-
-            <TextInput
-              style={styles.buddySearchInput}
-              placeholder="Enter special buddy code..."
-              placeholderTextColor="#888"
-              value={buddySearch}
-              onChangeText={setBuddySearch}
-            />
-
-            <TouchableOpacity
-              style={[styles.BuddyModalButton, { width: '100%' }]}
-              onPress={() => confirmBuddyChange(buddySearch)}
-            >
-              <Text style={styles.confirmButtonText}>Confirm</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalCancelButton,  { width: '100%' }]}
-              onPress={() => setShowBuddyModal(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
