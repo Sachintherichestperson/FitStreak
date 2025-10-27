@@ -51,22 +51,23 @@ const WorkoutPlan = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentDayWorkout, setCurrentDayWorkout] = useState<DayWorkout | null>(null);
 
-
-
-  Animated.loop(
-    Animated.sequence([
-      Animated.timing(pulseAnim, {
-        toValue: 1.05,
-        duration: 1000,
-        useNativeDriver: true
-      }),
-      Animated.timing(pulseAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true
-      })
-    ])
-  ).start();
+  // Move animation inside useEffect to avoid running on every render
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 1000,
+          useNativeDriver: true
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true
+        })
+      ])
+    ).start();
+  }, []);
 
   // Function to get current day of the week
   const getCurrentDay = () => {
@@ -168,7 +169,7 @@ const WorkoutPlan = () => {
         <View style={styles.exerciseDetails}>
           <Text style={styles.exerciseDetail}>{item.sets} sets</Text>
           <Text style={styles.exerciseDetail}>{item.reps} reps</Text>
-          {item.weight && <Text style={styles.exerciseDetail}>{item.weight} kg</Text>}
+          {item.weight != null && <Text style={styles.exerciseDetail}>{item.weight} kg</Text>}
         </View>
         {item.notes && <Text style={styles.notes}>{item.notes}</Text>}
       </View>
@@ -176,49 +177,49 @@ const WorkoutPlan = () => {
   );
 
   if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['#0a0a0a', '#121212']}
-          style={StyleSheet.absoluteFill}
-        />
-        
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#f0f0f0" />
-          </TouchableOpacity>
-          <View style={[styles.skeletonText, { width: 150, height: 24 }]} />
-          <View style={{ width: 40 }} />
-        </View>
-        
-        <View style={styles.progressContainer}>
-          <View style={[styles.skeletonText, { width: '100%', height: 6, marginBottom: 5 }]} />
-          <View style={[styles.skeletonText, { width: 60, height: 14, alignSelf: 'flex-end' }]} />
-        </View>
-        
-        <View style={styles.workoutInfo}>
-          <View style={[styles.skeletonText, { width: 120, height: 20, marginBottom: 10 }]} />
-          <View style={[styles.skeletonText, { width: 80, height: 16 }]} />
-        </View>
-        
-        <FlatList
-          data={[1, 2, 3, 4, 5]}
-          renderItem={() => (
-            <View style={[styles.exerciseCard, styles.skeletonCard]}>
-              <View style={[styles.skeletonText, { width: 24, height: 24, borderRadius: 12 }]} />
-              <View style={styles.exerciseInfo}>
-                <View style={[styles.skeletonText, { width: '70%', height: 16, marginBottom: 8 }]} />
-                <View style={[styles.skeletonText, { width: '90%', height: 12 }]} />
-              </View>
-              <View style={[styles.skeletonText, { width: 24, height: 24 }]} />
-            </View>
-          )}
-          keyExtractor={(item) => item.toString()}
-          contentContainerStyle={styles.exercisesContainer}
-        />
+  return (
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#0a0a0a', '#121212']}
+        style={StyleSheet.absoluteFill}
+      />
+      
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#f0f0f0" />
+        </TouchableOpacity>
+        <View style={[styles.skeletonBox, { width: 150, height: 24 }]} />
+        <View style={{ width: 40 }} />
       </View>
-    );
-  }
+      
+      <View style={styles.progressContainer}>
+        <View style={[styles.skeletonBox, { width: '100%', height: 6, marginBottom: 5 }]} />
+        <Text style={[styles.skeletonBox, { width: 60, height: 14, alignSelf: 'flex-end' }]}>{' '}</Text>
+      </View>
+      
+      <View style={styles.workoutInfo}>
+        <Text style={[styles.skeletonBox, { width: 120, height: 20, marginBottom: 10 }]}>{' '}</Text>
+        <Text style={[styles.skeletonBox, { width: 80, height: 16 }]}>{' '}</Text>
+      </View>
+      
+      <FlatList
+        data={[1, 2, 3, 4, 5]}
+        renderItem={() => (
+          <View style={[styles.exerciseCard, styles.skeletonCard]}>
+            <View style={[styles.skeletonBox, { width: 24, height: 24, borderRadius: 12 }]} />
+            <View style={styles.exerciseInfo}>
+              <Text style={[styles.skeletonBox, { width: '70%', height: 16, marginBottom: 8 }]}>{' '}</Text>
+              <Text style={[styles.skeletonBox, { width: '90%', height: 12 }]}>{' '}</Text>
+            </View>
+            <View style={[styles.skeletonBox, { width: 24, height: 24 }]} />
+          </View>
+        )}
+        keyExtractor={(item) => item.toString()}
+        contentContainerStyle={styles.exercisesContainer}
+      />
+    </View>
+  );
+}
 
   if (!workoutPlan || !currentDayWorkout) {
     return (
@@ -233,9 +234,6 @@ const WorkoutPlan = () => {
             <Ionicons name="arrow-back" size={24} color="#f0f0f0" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Today's Workout</Text>
-          {/* <TouchableOpacity onPress={() => router.push('/WorkoutSettings')}>
-            <FontAwesome name="cog" size={24} color="#f0f0f0" />
-          </TouchableOpacity> */}
         </View>
         
         <View style={styles.noWorkoutContainer}>
@@ -269,9 +267,6 @@ const WorkoutPlan = () => {
           <Ionicons name="arrow-back" size={24} color="#f0f0f0" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Today's Workout</Text>
-        <TouchableOpacity onPress={() => router.push('/WorkoutSettings')}>
-          <FontAwesome name="cog" size={24} color="#f0f0f0" />
-        </TouchableOpacity>
       </View>
       
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -543,12 +538,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
   },
-  // Skeleton Loading Styles
+  // Skeleton Loading Styles - RENAMED from skeletonText to skeletonBox
   skeletonCard: {
     backgroundColor: '#1a1a1a',
     borderColor: '#1a1a1a',
   },
-  skeletonText: {
+  skeletonBox: {
     backgroundColor: '#1a1a1a',
     borderRadius: 4,
   },

@@ -129,7 +129,7 @@ setInterval(() => {
 
 setInterval(() => {
   Post();
-}, 60*  60 * 1000);
+}, 3 * 60*  60 * 1000);
 
 
 async function Post() {
@@ -141,7 +141,7 @@ async function Post() {
 
 async function CommentsNotification() {
   const posts = await Postmongo.find().populate("User");
-  const milestones = [10, 25, 50, 100, 250, 500]; // you can expand this anytime
+  const milestones = [10, 21, 25, 31, 35, 45];
 
   for (const post of posts) {
     for (const milestone of milestones) {
@@ -165,8 +165,8 @@ async function LikesNotification() {
   const posts = await Postmongo.find().populate("User");
 
   // define milestone thresholds
-  const fireMilestones = [10, 20, 35, 50, 75, 100];
-  const bicepsMilestones = [5, 10, 20, 30, 40, 50];
+  const fireMilestones = [10, 16, 23, 33, 45, 50];
+  const bicepsMilestones = [5, 13, 25, 37, 48, 60];
 
   for (const post of posts) {
     if (!post.User?.NotificationToken) continue;
@@ -202,7 +202,7 @@ async function LikesNotification() {
 async function FakeViewsMilestoneNotification() {
   const posts = await Postmongo.find().populate("User");
 
-  const baseMilestones = [20, 40, 80, 150, 210];
+  const baseMilestones = [20, 35, 50, 80, 150, 210, 240];
 
   for (const post of posts) {
     if (!post.User?.NotificationToken) continue;

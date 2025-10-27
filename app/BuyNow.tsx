@@ -91,20 +91,6 @@ const BuyNow = () => {
 
   const paymentMethods: PaymentMethod[] = [
     {
-      id: '1',
-      type: 'card',
-      name: 'Credit/Debit Card',
-      details: 'Pay with your card',
-      icon: 'card'
-    },
-    {
-      id: '2',
-      type: 'upi',
-      name: 'UPI Payment',
-      details: 'Pay using UPI',
-      icon: 'phone-portrait'
-    },
-    {
       id: '3',
       type: 'cod',
       name: 'Cash on Delivery',
@@ -192,8 +178,6 @@ const BuyNow = () => {
         shipping: shipping,
         discount: fitcoinsDiscount
       };
-
-      console.log(orderData)
 
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));

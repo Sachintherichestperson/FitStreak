@@ -147,33 +147,31 @@ const WorkoutInput = () => {
     setExercises(newExercises);
   };
 
-  const removeExistingWorkout = async (id: string) => {
-    try {
-      const token = await AsyncStorage.getItem('Token');
-      if (!token) {
-        Alert.alert('Error', 'Authentication token not found');
-        return;
-      }
-      
-      const response = await fetch(`https://backend-hbwp.onrender.com/Workout/Add/workouts/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        // Remove from local state
-        setExistingWorkouts(existingWorkouts.filter(workout => workout._id !== id));
-        Alert.alert('Success', 'Workout removed successfully!');
-      } else {
-        throw new Error('Failed to remove workout');
-      }
-    } catch (error) {
-      console.error('Error removing workout:', error);
-      Alert.alert('Error', 'Failed to remove workout');
+  const removeExistingWorkout = async (workoutId, exerciseName) => {
+  try {
+    const token = await AsyncStorage.getItem('Token');
+    if (!token) {
+      Alert.alert('Error', 'Authentication token not found');
+      return;
     }
-  };
+
+    const response = await fetch(`https://backend-hbwp.onrender.com/Workout/Add/workouts/${workoutId}/exercise/${encodeURIComponent(exerciseName)}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (response.ok) {
+      setExistingWorkouts(existingWorkouts.filter(ex => ex.name !== exerciseName));
+      Alert.alert('Success', 'Exercise removed successfully!');
+    } else {
+      throw new Error('Failed to remove exercise');
+    }
+  } catch (error) {
+    console.error('Error removing workout:', error);
+    Alert.alert('Error', 'Failed to remove exercise');
+  }
+};
+
 
   const saveWorkoutPlan = async () => {
     if (!workoutTitle) {
@@ -277,14 +275,14 @@ const WorkoutInput = () => {
             <Text style={styles.sectionTitle}>Existing Workouts for {selectedDay}</Text>
             <View style={styles.existingWorkoutsList}>
               {existingWorkouts.map((workout, index) => (
-                <View key={workout._id} style={styles.existingWorkoutItem}>
+                <View key={`${workout._id}-${workout.name}-${index}`}  style={styles.existingWorkoutItem}>
                   <View style={styles.existingWorkoutInfo}>
                     <Text style={styles.existingWorkoutTitle}>{workout.title}</Text>
                     <Text style={styles.existingWorkoutName}>{workout.name}</Text>
                     <View style={styles.existingWorkoutDetails}>
                       <Text style={styles.existingWorkoutDetail}>{workout.sets} sets</Text>
                       <Text style={styles.existingWorkoutDetail}>{workout.reps} reps</Text>
-                      {workout.weight && workout.weight > 0 && (
+                      {workout.weight != null && (
                         <Text style={styles.existingWorkoutDetail}>{workout.weight} kg</Text>
                       )}
                     </View>
@@ -294,7 +292,7 @@ const WorkoutInput = () => {
                   </View>
                   <TouchableOpacity 
                     style={styles.removeButton}
-                    onPress={() => removeExistingWorkout(workout._id)}
+                    onPress={() => removeExistingWorkout(workout._id, workout.name)}
                   >
                     <Ionicons name="trash-outline" size={18} color="#ff6b6b" />
                   </TouchableOpacity>

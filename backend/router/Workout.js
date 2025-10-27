@@ -70,4 +70,38 @@ router.post("/Add/workouts", isloggedin, async (req, res) => {
   }
 });
 
+router.delete("/Add/workouts/:workoutId/exercise/:exerciseName", isloggedin, async (req, res) => {
+  try {
+    const { workoutId, exerciseName } = req.params;
+    const userId = req.user.id;
+
+    const workout = await Workoutmongo.findOne({ _id: workoutId, user: userId });
+    if (!workout) {
+      return res.status(404).json({ error: "Workout not found or unauthorized" });
+    }
+
+    let exerciseRemoved = false;
+
+    // Iterate through all days to find and remove the exercise by name
+    for (const day of workout.days) {
+      const before = day.exercises.length;
+      day.exercises = day.exercises.filter(ex => ex.name !== exerciseName);
+      if (day.exercises.length < before) {
+        exerciseRemoved = true;
+      }
+    }
+
+    if (!exerciseRemoved) {
+      return res.status(404).json({ error: "Exercise not found" });
+    }
+
+    await workout.save();
+    res.status(200).json({ message: "Exercise deleted successfully", workout });
+  } catch (error) {
+    console.error("Error deleting exercise:", error);
+    res.status(500).json({ error: "Failed to delete exercise" });
+  }
+});
+
+
 module.exports = router;
