@@ -83,8 +83,6 @@
       "favicon": "./assets/images/favicon.png"
     },
     "owner": "sachinbajaj",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    }
+    "runtimeVersion": "1.0.0"
   }
 }
