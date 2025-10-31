@@ -61,7 +61,6 @@ async function processUserStreakReminder(user, currentTime) {
 
     const today = new Date();
     const lastScanDate = new Date(CurrentTrack);
-    // console.log(lastScanDate);
     
     if (isSameDay(today, lastScanDate)) {
       return;
@@ -70,14 +69,11 @@ async function processUserStreakReminder(user, currentTime) {
     const reminderTime = new Date(lastScanDate);
     reminderTime.setDate(reminderTime.getDate() + 1);
     reminderTime.setHours(reminderTime.getHours() - 1);
-    // console.log(reminderTime);
 
     if (isSameHour(currentTime, reminderTime)) {
-      console.log(currentTime, reminderTime);
       
       const todayKey = getDateKey(currentTime);
       const lastNotificationKey = user.Streak.lastNotificationSent;
-      console.log("h",lastNotificationKey);
       
       if (lastNotificationKey !== todayKey) {
         await sendNotification(
@@ -93,7 +89,6 @@ async function processUserStreakReminder(user, currentTime) {
           }
         });
 
-        console.log(`Streak reminder sent to user: ${user.username}`);
       }
     }
 
@@ -234,7 +229,6 @@ async function FakeViewsMilestoneNotification() {
 
 cron.schedule('0 12 * * *', async () => {
   try {
-    console.log("Running milestone notifications at 12:00 PM");
     await LikesNotification();
     await CommentsNotification();
     await FakeViewsMilestoneNotification();
@@ -246,7 +240,6 @@ cron.schedule('0 12 * * *', async () => {
 
 cron.schedule('0 18 * * *', async () => {
   try {
-    console.log("Running milestone notifications at 6:00 PM");
     await LikesNotification();
     await CommentsNotification();
     await FakeViewsMilestoneNotification();
@@ -258,7 +251,6 @@ cron.schedule('0 18 * * *', async () => {
 
 cron.schedule('0 22 * * *', async () => {
   try {
-    console.log("Running milestone notifications at 10:00 PM");
     await LikesNotification();
     await CommentsNotification();
     await FakeViewsMilestoneNotification();
@@ -274,24 +266,43 @@ function generateFakeObjectId() {
 }
 
 async function seedFakeReactions(postId) {
-    try {
-        const bicepsCount = Math.floor(Math.random() * 11) + 10;
-        const fireCount = Math.floor(Math.random() * 11) + 10;
+  try {
+    // Each post gets its own random max (between 60–90)
+    const maxTotal = Math.floor(Math.random() * 31) + 60; // 60–90
 
-        const bicepsUsers = Array.from({ length: bicepsCount }, () => generateFakeObjectId());
-        const fireUsers = Array.from({ length: fireCount }, () => generateFakeObjectId());
+    // Randomly decide total to add for this run (a fraction of the cap)
+    const totalToAdd = Math.floor(Math.random() * (maxTotal - 40)) + 30; // 30–(maxTotal)
+    const bicepsCount = Math.floor(Math.random() * totalToAdd);
+    const fireCount = totalToAdd - bicepsCount;
 
-        await Postmongo.findByIdAndUpdate(postId, {
-            $addToSet: {
-                Biceps: { $each: bicepsUsers },
-                Fire: { $each: fireUsers }
-            }
-        });
+    const bicepsUsers = Array.from({ length: bicepsCount }, generateFakeObjectId);
+    const fireUsers = Array.from({ length: fireCount }, generateFakeObjectId);
 
-        console.log(`Post ${postId} seeded with fake reactions!`);
-    } catch (err) {
-        console.error(err);
+    const post = await Postmongo.findById(postId);
+    if (!post) return console.log(`❌ Post ${postId} not found`);
+
+    const currentTotal = post.Biceps.length + post.Fire.length;
+
+    if (currentTotal >= maxTotal) {
+      console.log(`⚠️ Post ${postId} already has ${currentTotal}/${maxTotal} reactions, skipping`);
+      return;
     }
+
+    const remaining = maxTotal - currentTotal;
+    const newBiceps = bicepsUsers.slice(0, Math.floor(remaining / 2));
+    const newFire = fireUsers.slice(0, Math.ceil(remaining / 2));
+
+    await Postmongo.findByIdAndUpdate(postId, {
+      $addToSet: {
+        Biceps: { $each: newBiceps },
+        Fire: { $each: newFire },
+      },
+    });
+
+    console.log(`✅ Post ${postId} seeded with ${newBiceps.length + newFire.length} fake reactions (cap: ${maxTotal})`);
+  } catch (err) {
+    console.error('❌ Error seeding fake reactions:', err);
+  }
 }
 
 module.exports = {

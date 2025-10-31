@@ -26,33 +26,33 @@ const FitStreakBadges = () => {
   const [refreshing, setRefreshing] = React.useState(false);
 
   const badgeImages: { [key: string]: any } = {
-      Tiger : require('../../assets/images/Tiger.png'),
-      Panther : require('../../assets/images/Panther.png'),
-      Dragon : require('../../assets/images/Dragon.png'),
-      Elephant : require('../../assets/images/Elephant.png'),
-      Goat : require('../../assets/images/Goat.png'),
-      Lion : require('../../assets/images/Lion.png'),
-      Bison : require('../../assets/images/Bison.png'),
-      Rabbit : require('../../assets/images/Rabbit.png'),
-      Phoenix : require('../../assets/images/Phoniex.png'),
-      Griffin : require('../../assets/images/Griffen.png'),
-      Beast : require('../../assets/images/Beast.png'),
-      Fox : require('../../assets/images/Fox.png'),
-      Ant : require('../../assets/images/Ant.png'),
-      Wolf : require('../../assets/images/Wolf.png'),
-      Fish : require('../../assets/images/fish.png'),
-      Cat : require('../../assets/images/Cat.png'),
-      Rhino : require('../../assets/images/Rhino.png'),
-      Frog : require('../../assets/images/Frog.png'),
-      Owl : require('../../assets/images/owl.png'),
-      Squirrel : require('../../assets/images/Squirrel.png'),
-      Horse : require('../../assets/images/Horse.png'),
-      Dog : require('../../assets/images/Dog.png'),
-      Shark : require('../../assets/images/Shark.png'),
-      Falcon : require('../../assets/images/Falcon.png'),
-      Bettle : require('../../assets/images/Bettle.png'),
-      Bear : require('../../assets/images/Bear.png'),
-      Crown : require('../../assets/images/Crown.png'),
+      Tiger: require('../../assets/images/Tiger.png'),
+      Panther: require('../../assets/images/Panther.png'),
+      Dragon: require('../../assets/images/Dragon.png'),
+      Elephant: require('../../assets/images/Elephant.png'),
+      Goat: require('../../assets/images/Goat.png'),
+      Lion: require('../../assets/images/Lion.png'),
+      Bison: require('../../assets/images/Bison.png'),
+      Rabbit: require('../../assets/images/Rabbit.png'),
+      Phoenix: require('../../assets/images/Phoniex.png'),
+      Griffin: require('../../assets/images/Griffen.png'),
+      Beast: require('../../assets/images/Beast.png'),
+      Fox: require('../../assets/images/Fox.png'),
+      Ant: require('../../assets/images/Ant.png'),
+      Wolf: require('../../assets/images/Wolf.png'),
+      Fish: require('../../assets/images/fish.png'),
+      Cat: require('../../assets/images/Cat.png'),
+      Rhino: require('../../assets/images/Rhino.png'),
+      Frog: require('../../assets/images/Frog.png'),
+      Owl: require('../../assets/images/owl.png'),
+      Squirrel: require('../../assets/images/Squirrel.png'),
+      Horse: require('../../assets/images/Horse.png'),
+      Dog: require('../../assets/images/Dog.png'),
+      Shark: require('../../assets/images/Shark.png'),
+      Falcon: require('../../assets/images/Falcon.png'),
+      Bettle: require('../../assets/images/Bettle.png'),
+      Bear: require('../../assets/images/Bear.png'),
+      Crown: require('../../assets/images/Crown.png'),
   }
 
   // Types for badge data
@@ -72,12 +72,14 @@ const FitStreakBadges = () => {
     nextBadges?: Badge[];
     specialBadges?: Badge[];
     progress: number;
+    streak?: number;
   };
 
   // State for badge data
   const [badgeData, setBadgeData] = React.useState<BadgeData | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [showInfo, setShowInfo] = React.useState(false);
 
   const fetchBadgeData = async () => {
     try {
@@ -112,8 +114,6 @@ const FitStreakBadges = () => {
             earned = true;
           }
           
-          // Add more conditions for other badges as needed
-          
           return {
             ...badge,
             earned
@@ -137,7 +137,6 @@ const FitStreakBadges = () => {
       setLoading(false);
     }
   };
-
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -216,6 +215,7 @@ const FitStreakBadges = () => {
         ),
         name: badgeData.currentBadge.name,
         active: true,
+        isCurrent: true,
       });
     }
 
@@ -243,13 +243,65 @@ const FitStreakBadges = () => {
             />
           ),
           name: badge.name,
-          active: false
+          active: false,
+          isCurrent: false,
         });
       });
     }
     
     return tiers;
   }, [badgeData]);
+
+  const InfoModal = () => (
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <Text style={styles.modalTitle}>How to Earn Badges</Text>
+        
+        <View style={styles.infoItem}>
+          <View style={styles.infoIcon}>
+            <FontAwesome5 name="fire" size={20} color="#00ff9d" />
+          </View>
+          <View style={styles.infoText}>
+            <Text style={styles.infoHeading}>Maintain Your Streak</Text>
+            <Text style={styles.infoDescription}>
+              Complete your daily fitness goals to build your streak and unlock new animal badges
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.infoItem}>
+          <View style={styles.infoIcon}>
+            <FontAwesome5 name="award" size={20} color="#00ff9d" />
+          </View>
+          <View style={styles.infoText}>
+            <Text style={styles.infoHeading}>Special Achievements</Text>
+            <Text style={styles.infoDescription}>
+              Earn special badges by reaching milestones like 7-day and 30-day streaks
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.infoItem}>
+          <View style={styles.infoIcon}>
+            <FontAwesome5 name="chart-line" size={20} color="#00ff9d" />
+          </View>
+          <View style={styles.infoText}>
+            <Text style={styles.infoHeading}>Progress Tracking</Text>
+            <Text style={styles.infoDescription}>
+              Track your progress toward the next badge in the level hierarchy
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.modalButton}
+          onPress={() => setShowInfo(false)}
+        >
+          <Text style={styles.modalButtonText}>Got It!</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   if (loading) {
     return (
@@ -274,6 +326,8 @@ const FitStreakBadges = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {showInfo && <InfoModal />}
+      
       <Animated.View style={[styles.refreshIndicator, { transform: [{ translateY }], opacity }]}>
         <ActivityIndicator size="small" color="#00ff9d" />
       </Animated.View>
@@ -298,8 +352,35 @@ const FitStreakBadges = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Badges</Text>
+          <View style={styles.headerTop}>
+            <Text style={styles.title}>Your Badges</Text>
+            <TouchableOpacity 
+              style={styles.infoButton}
+              onPress={() => setShowInfo(true)}
+            >
+              <FontAwesome5 name="info-circle" size={20} color="#00ff9d" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.subtitle}>
+            Earn badges by maintaining your workout streak
+          </Text>
         </View>
+
+        {/* Current Streak Info */}
+        {badgeData?.streak && (
+          <View style={styles.streakCard}>
+            <View style={styles.streakInfo}>
+              <FontAwesome5 name="fire" size={24} color="#00ff9d" />
+              <View style={styles.streakText}>
+                <Text style={styles.streakLabel}>Current Streak</Text>
+                <Text style={styles.streakCount}>{badgeData.streak} days</Text>
+              </View>
+            </View>
+            <Text style={styles.streakTip}>
+              Keep going! Complete today's workout to continue your streak
+            </Text>
+          </View>
+        )}
 
         {/* Level Progress */}
         {badgeData && (
@@ -309,6 +390,8 @@ const FitStreakBadges = () => {
             end={{ x: 1, y: 1 }}
             style={styles.levelCard}
           >
+            <Text style={styles.levelCardTitle}>Current Level</Text>
+            
             <View style={styles.levelProgress}>
               <Animated.View style={[styles.levelIcon, { transform: [{ scale: pulseAnim }] }]}>
                 {badgeData.currentBadge.isImage ? (
@@ -342,28 +425,46 @@ const FitStreakBadges = () => {
                 )}
               </View>
             </View>
-             {levelTiers.length > 0 && (
-                <View style={styles.levelHierarchy}>
-                  {levelTiers.map((tier, index) => (
-                    <View key={index} style={[
-                      styles.levelTier, 
-                      tier.active && styles.activeTier,
-                      tier.isCurrent && styles.currentTier
-                    ]}>
-                      {tier.icon}
-                      <Text style={[
-                        styles.tierName,
-                        tier.isCurrent && styles.currentTierName
-                      ]}>{tier.name}</Text>
+
+            {/* Level Hierarchy */}
+            <Text style={styles.hierarchyTitle}>Your Journey</Text>
+            <View style={styles.levelHierarchy}>
+              {levelTiers.map((tier, index) => (
+                <View key={index} style={[
+                  styles.levelTier, 
+                  tier.active && styles.activeTier,
+                ]}>
+                  <View style={[
+                    styles.tierIconContainer,
+                    tier.isCurrent && styles.currentTierIcon
+                  ]}>
+                    {tier.icon}
+                  </View>
+                  <Text style={[
+                    styles.tierName,
+                    tier.isCurrent && styles.currentTierName
+                  ]}>
+                    {tier.name}
+                  </Text>
+                  {tier.isCurrent && (
+                    <View style={styles.currentIndicator}>
+                      <Text style={styles.currentIndicatorText}>Current</Text>
                     </View>
-                  ))}
-              </View>
-            )}
+                  )}
+                </View>
+              ))}
+            </View>
           </LinearGradient>
         )}
 
-        {/* Your Badges Section */}
-        <Text style={styles.sectionTitle}>Your Badges</Text>
+        {/* Special Badges Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Special Achievements</Text>
+          <Text style={styles.sectionSubtitle}>
+            Milestone badges for consistent effort
+          </Text>
+        </View>
+        
         <View style={styles.badgesGrid}>
           {badgeData?.specialBadges?.map((badge, index) => (
             <TouchableOpacity
@@ -374,24 +475,31 @@ const FitStreakBadges = () => {
               ]}
               activeOpacity={0.8}
             >
-              <Text style={{ fontSize: 30, opacity: badge.earned ? 1 : 0.6 }}>
-                {badge.emoji}
+              <View style={styles.badgeIconContainer}>
+                <Text style={{ fontSize: 30, opacity: badge.earned ? 1 : 0.4 }}>
+                  {badge.emoji}
+                </Text>
+                {!badge.earned && (
+                  <MaterialIcons
+                    name="lock"
+                    size={16}
+                    color="#777"
+                    style={styles.lockIcon}
+                  />
+                )}
+              </View>
+              
+              <Text style={[
+                styles.badgeName,
+                !badge.earned && styles.lockedBadgeName
+              ]}>
+                {badge.name}
               </Text>
-              <Text style={styles.badgeName}>{badge.name}</Text>
               
               {badge.earned ? (
                 <Text style={styles.badgeDescription}>{badge.description}</Text>
               ) : (
-                <Text style={styles.badgeInstruction}>🔓 {badge.instruction}</Text>
-              )}
-              
-              {!badge.earned && (
-                <MaterialIcons
-                  name="lock"
-                  size={20}
-                  color="#777"
-                  style={styles.lockIcon}
-                />
+                <Text style={styles.badgeInstruction}>{badge.instruction}</Text>
               )}
             </TouchableOpacity>
           ))}
@@ -408,7 +516,6 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     padding: 16,
-    marginTop: 20,
     paddingTop: 20,
     paddingBottom: 80,
   },
@@ -438,13 +545,58 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
     color: 'white',
-    backgroundImage: 'linear-gradient(90deg, #00ff9d, #00f5ff)',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#888',
+    marginBottom: 8,
+  },
+  infoButton: {
+    padding: 8,
+  },
+  streakCard: {
+    backgroundColor: 'rgba(0, 255, 157, 0.08)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 157, 0.2)',
+    marginBottom: 20,
+  },
+  streakInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  streakText: {
+    flex: 1,
+  },
+  streakLabel: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 2,
+  },
+  streakCount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#00ff9d',
+  },
+  streakTip: {
+    fontSize: 12,
+    color: '#888',
+    fontStyle: 'italic',
   },
   levelCard: {
     borderRadius: 16,
@@ -452,14 +604,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
     marginBottom: 24,
-    position: 'relative',
-    overflow: 'hidden',
+  },
+  levelCardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 16,
   },
   levelProgress: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 15,
-    marginBottom: 15,
+    marginBottom: 20,
   },
   levelIcon: {
     width: 75,
@@ -483,12 +639,12 @@ const styles = StyleSheet.create({
   levelStatus: {
     fontSize: 14,
     color: '#777',
+    marginBottom: 8,
   },
   progressBar: {
     height: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 4,
-    marginTop: 10,
     overflow: 'hidden',
   },
   progressFill: {
@@ -496,32 +652,71 @@ const styles = StyleSheet.create({
     backgroundColor: '#00ff9d',
     borderRadius: 4,
   },
+  hierarchyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 12,
+  },
   levelHierarchy: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 15,
+    gap: 12,
   },
   levelTier: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    opacity: 0.5,
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   activeTier: {
+    backgroundColor: 'rgba(0, 255, 157, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 157, 0.2)',
+  },
+  tierIconContainer: {
+    width: 50,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.7,
+  },
+  currentTierIcon: {
     opacity: 1,
   },
-  tierIcon: {
-    fontSize: 20,
-  },
   tierName: {
-    fontSize: 12,
-    color: '#777',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#888',
+  },
+  currentTierName: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  currentIndicator: {
+    backgroundColor: '#00ff9d',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  currentIndicatorText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0a0a0a',
+  },
+  sectionHeader: {
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: 'white',
-    marginBottom: 16,
-    marginTop: 8,
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#888',
   },
   badgesGrid: {
     flexDirection: 'row',
@@ -530,7 +725,7 @@ const styles = StyleSheet.create({
     marginBottom: 44,
   },
   badgeCard: {
-    width: (width - 64) / 3, // 3 columns with padding
+    width: (width - 64) / 2, // 2 columns for better visibility
     aspectRatio: 1,
     backgroundColor: '#121212',
     borderRadius: 12,
@@ -538,7 +733,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
+    padding: 16,
   },
   earnedBadge: {
     borderColor: '#00ff9d',
@@ -552,214 +747,117 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     borderColor: '#333',
   },
-  badgeName: {
-    fontSize: 12,
-    textAlign: 'center',
-    fontWeight: '500',
-    marginTop: 8,
-    color: 'white',
-  },
-  lockedText: {
-    color: '#777',
-  },
-  badgeDescription: {
-    fontSize: 10,
-    textAlign: 'center',
-    color: '#aaa',
-    marginTop: 5,
-  },
-  lockedDescription: {
-    color: '#555',
+  badgeIconContainer: {
+    position: 'relative',
+    marginBottom: 8,
   },
   lockIcon: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: -4,
+    right: -4,
+    backgroundColor: '#0a0a0a',
+    borderRadius: 8,
+    padding: 2,
   },
-  goldBadge: {
-    borderColor: '#ffd700',
-    shadowColor: '#ffd700',
+  badgeName: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 6,
+    color: 'white',
   },
-  silverBadge: {
-    borderColor: '#c0c0c0',
-    shadowColor: '#c0c0c0',
+  lockedBadgeName: {
+    color: '#777',
   },
-  bronzeBadge: {
-    borderColor: '#cd7f32',
-    shadowColor: '#cd7f32',
+  badgeDescription: {
+    fontSize: 11,
+    textAlign: 'center',
+    color: '#aaa',
+    lineHeight: 14,
   },
   badgeInstruction: {
-    fontSize: 10,
+    fontSize: 11,
     textAlign: 'center',
-    color: '#00ff9d', // Green color for instructions
-    marginTop: 5,
-    fontWeight: '600',
+    color: '#00ff9d',
+    fontWeight: '500',
+    lineHeight: 14,
   },
-  buddyCard: {
-    borderRadius: 16,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    marginBottom: 24,
-  },
-  buddyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
+    zIndex: 1000,
+    padding: 20,
   },
-  buddyTitle: {
+  modalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 157, 0.2)',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 16,
+  },
+  infoIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 255, 157, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  infoText: {
+    flex: 1,
+  },
+  infoHeading: {
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
+    marginBottom: 4,
   },
-  streakCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  streakText: {
+  infoDescription: {
     fontSize: 14,
-    color: '#00ff9d',
+    color: '#aaa',
+    lineHeight: 18,
   },
-  buddyInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-    marginBottom: 15,
-  },
-  buddyAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#333',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#00ff9d',
-  },
-  buddyName: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 5,
-    color: 'white',
-  },
-  buddyStatus: {
-    fontSize: 14,
-    color: '#777',
-  },
-  comparisonBars: {
-    gap: 12,
-  },
-  comparisonItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  comparisonLabel: {
-    width: 80,
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#EEE',
-  },
-  comparisonBarContainer: {
-    flex: 1,
-    height: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  comparisonBar: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  youBar: {
+  modalButton: {
     backgroundColor: '#00ff9d',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
   },
-  buddyBar: {
-    backgroundColor: '#00f5ff',
-  },
-  comparisonValue: {
-    width: 45,
-    fontSize: 14,
+  modalButtonText: {
+    fontSize: 16,
     fontWeight: '600',
-    textAlign: 'right',
-    color: 'white',
+    color: '#0a0a0a',
   },
-  duoCard: {
-    borderRadius: 16,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  duoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    marginBottom: 12,
-  },
-  youDuoItem: {
-    borderWidth: 1,
-    borderColor: '#00ff9d',
-    backgroundColor: 'rgba(0, 255, 157, 0.08)',
-  },
-  duoRank: {
-    fontSize: 14,
-    fontWeight: '700',
-    width: 24,
-    textAlign: 'center',
-    color: 'white',
-  },
-  goldRank: {
-    color: '#ffd700',
-  },
-  silverRank: {
-    color: '#c0c0c0',
-  },
-  bronzeRank: {
-    color: '#cd7f32',
-  },
-  duoAvatars: {
-    position: 'relative',
-    width: 50,
-    height: 50,
-  },
-  duoAvatar: {
-    width: 35,
-    height: 35,
-    borderRadius: 18,
-    backgroundColor: '#333',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+  refreshIndicator: {
     position: 'absolute',
-  },
-  secondAvatar: {
-    bottom: 0,
+    top: 60,
+    left: 0,
     right: 0,
-    borderColor: '#00ff9d',
-  },
-  duoInfo: {
-    flex: 1,
-  },
-  duoNames: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 3,
-    color: 'white',
-  },
-  duoStreak: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-  },
-  duoStreakText: {
-    fontSize: 12,
-    color: '#00ff9d',
+    zIndex: 100,
   },
 });
 

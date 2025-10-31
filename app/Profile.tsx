@@ -18,41 +18,11 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
+    Linking
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
-
-type UserStreak = {
-  Scan: number;
-  lastScan: string;
-};
-
-type Comment = {
-  _id: string;
-  content: string;
-  timeAgo: string;
-};
-
-type AnonymousPost = {
-  _id: string;
-  Content: string;
-  image?: string;
-  timeAgo: string;
-  Biceps: number;
-  Fire: number;
-  isLiked: boolean;
-  comments: Comment[];
-  showComments: boolean;
-  commentText: string;
-};
-
-interface BuddyInfo {
-  name: string | null;
-  id: string | null;
-  streak: number;
-  avatar?: string;
-}
 
 const FitStreakProfile = () => {
   const badgeImages: { [key: string]: any } = {
@@ -89,23 +59,17 @@ const FitStreakProfile = () => {
   const [editMode, setEditMode] = useState(false);
   const [userId, setUserId] = useState<string>('');
   const [name, setName] = useState<string>('');
+  const [mobile, setMobile] = useState('');
   const [PostCount, setPostCount] = useState(0);
   const [level, setLevel] = useState('Beast Level');
   const [currentBadge, setCurrentBadge] = useState('Beast');
   const [streak, setStreak] = useState(0);
   const [fitCoins, setFitCoins] = useState(0);
   const [badges, setBadges] = useState(0);
-  const [showWalletModal, setShowWalletModal] = useState(false);
-  const [walletAction, setWalletAction] = useState('');
-  const [convertAmount, setConvertAmount] = useState('');
-  const [addAmount, setAddAmount] = useState('');
-  const [showPostModal, setShowPostModal] = useState(false);
-  const [postContent, setPostContent] = useState('');
-  const [postImage, setPostImage] = useState<string | null>(null);
-  const [isPosting, setIsPosting] = useState(false);
-  const [anonymousPosts, setAnonymousPosts] = useState<AnonymousPost[]>([]);
-  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [helpTitle, setHelpTitle] = useState('');
+  const [helpDescription, setHelpDescription] = useState('');
+  const [isSubmittingHelp, setIsSubmittingHelp] = useState(false);
 
   const handleBack = () => {
     router.back();
@@ -124,6 +88,7 @@ const FitStreakProfile = () => {
       const data = await response.json();
 
       setName(data.user.username || '');
+      setMobile(data.user.Mobile);
       setUserId(data.user._id || '');
       setLevel(data.Level);
       setCurrentBadge(data.Badge);
@@ -132,37 +97,8 @@ const FitStreakProfile = () => {
       setBadges(data.user.Badges.length || 0);
       setFitCoins(data.Coins || 0);
 
-      const postsWithTimeAgo = data.posts.map((post: any) => {
-        const createdAt = new Date(post.CreatedAt);
-        const now = new Date();
-        const diffMs = now.getTime() - createdAt.getTime();
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-        let timeAgo = '';
-        if (diffHours < 24) {
-          timeAgo = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-        } else {
-          timeAgo = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-        }
-
-        return { 
-          ...post, 
-          timeAgo,
-          isLiked: false,
-          Fire: post.Fire?.length || 0,
-          Biceps: post.Biceps?.length || 0,
-          comments: post.Comment?.length || 0,
-          showComments: false,
-          commentText: ''
-        };
-      });
-
-      setAnonymousPosts(postsWithTimeAgo);
     } catch (error) {
       console.error('Error fetching profile data:', error);
-    } finally {
-      setIsLoadingPosts(false);
     }
   };
 
@@ -170,15 +106,12 @@ const FitStreakProfile = () => {
     BackendData();
   }, []);
 
-
-
   const handleSaveProfile = async () => {
     if (!name.trim()) {
       Alert.alert('Error', 'Username cannot be empty');
       return;
     }
 
-    setIsUpdatingProfile(true);
     try {
       const token = await AsyncStorage.getItem('Token');
       
@@ -201,47 +134,18 @@ const FitStreakProfile = () => {
       if (data.success) {
         setEditMode(false);
         Alert.alert('Success', 'Profile updated successfully');
-        BackendData(); // Refresh profile data
+        BackendData();
       } else {
         throw new Error(data.message || 'Profile update failed');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-    } finally {
-      setIsUpdatingProfile(false);
+      Alert.alert('Error', 'Failed to update profile');
     }
   };
 
   const handleEditProfile = () => {
     setEditMode(!editMode);
-  };
-
-  const handleWalletAction = (action: string) => {
-    setWalletAction(action);
-    setShowWalletModal(true);
-  };
-
-  const executeWalletAction = () => {
-    if (walletAction === 'convert') {
-      const amount = parseInt(convertAmount);
-      if (!isNaN(amount) && amount > 0 && amount <= fitCoins) {
-        setFitCoins(fitCoins - amount);
-        Alert.alert(`Converted ${amount} FC to your bank account`);
-      } else {
-        Alert.alert('Invalid amount');
-      }
-    } else if (walletAction === 'add') {
-      const amount = parseInt(addAmount);
-      if (!isNaN(amount)) {
-        setFitCoins(fitCoins + amount);
-        Alert.alert(`Added ${amount} FC to your wallet`);
-      } else {
-        Alert.alert('Invalid amount');
-      }
-    }
-    setShowWalletModal(false);
-    setConvertAmount('');
-    setAddAmount('');
   };
 
   const UserLoggingOut = () => {
@@ -256,254 +160,78 @@ const FitStreakProfile = () => {
     ]);
   };
 
-  const pickImage = async () => {
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== 'granted') {
-    Alert.alert('Sorry, we need camera roll permissions to make this work!');
+  const handleHelpSubmit = async () => {
+  if (!helpTitle.trim() || !helpDescription.trim()) {
+    Alert.alert('Error', 'Please fill in both title and description');
     return;
   }
 
-  let result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true, // prevents cropping
-    quality: 0.5,           // maximum quality, preserves original size
-    allowsMultipleSelection: false,
-  });
-
-  if (!result.canceled && result.assets && result.assets.length > 0) {
-    setPostImage(result.assets[0].uri);
-  }
-};
-
-
-  const removeImage = () => {
-    setPostImage(null);
-  };
-
-  const handlePostSubmit = async () => {
-  const token = await AsyncStorage.getItem('Token');
-
-  if (!postContent.trim() && !postImage) {
-    Alert.alert('Error', 'Please add some content or image to your post');
-    return;
-  }
-
-  setIsPosting(true);
-
+  setIsSubmittingHelp(true);
   try {
-    const formData = new FormData();
-    formData.append('Content', postContent);
-
-    if (postImage) {
-      formData.append('image', {
-        uri: postImage,
-        type: 'image/jpeg',
-        name: 'post-image.jpg',
-      } as any);
-    }
-
-    const response = await fetch('https://backend-hbwp.onrender.com/Profile/Create-Post', {
+    // 1. Send help data to your backend
+    const response = await fetch('https://backend-hbwp.onrender.com/Help', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data', // Important for file upload
+        'Content-Type': 'application/json',
       },
-      body: formData,
+      body: JSON.stringify({
+        title: helpTitle,
+        description: helpDescription,
+        user: name,
+        mobile: mobile,
+        date: new Date().toISOString(),
+      }),
     });
 
-    const data = await response.json();
+    if (!response.ok) {
+      throw new Error('Failed to send help request to backend');
+    }
 
-    const newPost: AnonymousPost = {
-      _id: data.id || Date.now().toString(),
-      Content: postContent,
-      image: data.imageUrl || undefined, // Make sure backend returns imageUrl
-      timeAgo: 'Just Now',
-      Biceps: 0,
-      Fire: 0,
-      isLiked: false,
-      comments: [],
-      showComments: false,
-      commentText: ''
-    };
+    Alert.alert(
+      'Help Request Sent!',
+      `We've received your help request. Our team will contact you shortly.\n\nTitle: ${helpTitle}\nDescription: ${helpDescription}`,
+      [{ text: 'OK', onPress: () => setShowHelpModal(false) }]
+    );
 
-    setAnonymousPosts([newPost, ...anonymousPosts]);
-    setPostContent('');
-    setPostImage(null);
-    setShowPostModal(false);
-    Alert.alert('Success', 'Your anonymous post has been shared!');
-    BackendData(); // Refresh posts
+    // 4. Reset fields
+    setHelpTitle('');
+    setHelpDescription('');
+
   } catch (error) {
-    console.error('Error creating post:', error);
-    Alert.alert('Error', 'Failed to create post');
+    console.error(error);
+    Alert.alert('Error', error.message || 'Failed to submit help request');
   } finally {
-    setIsPosting(false);
+    setIsSubmittingHelp(false);
   }
 };
 
 
-  const toggleLike = (postId: string) => {
-    setAnonymousPosts(anonymousPosts.map(post => {
-      if (post._id === postId) {
-        return {
-          ...post,
-          Biceps: post.isLiked ? post.Biceps - 1 : post.Biceps + 1,
-          isLiked: !post.isLiked
-        };
-      }
-      return post;
-    }));
-  };
-
-  const toggleComments = (postId: string) => {
-    setAnonymousPosts(anonymousPosts.map(post => {
-      if (post._id === postId) {
-        return {
-          ...post,
-          showComments: !post.showComments
-        };
-      }
-      return post;
-    }));
-  };
-
-  const handleCommentChange = (postId: string, text: string) => {
-    setAnonymousPosts(anonymousPosts.map(post => {
-      if (post._id === postId) {
-        return {
-          ...post,
-          commentText: text
-        };
-      }
-      return post;
-    }));
-  };
-
-  const submitComment = async (postId: string) => {
-    const post = anonymousPosts.find(p => p._id === postId);
-    if (!post || !post.commentText.trim()) return;
-
-    try {
-      const token = await AsyncStorage.getItem('Token');
-      const response = await fetch(`https://backend-hbwp.onrender.com/Profile/posts/${postId}/comments`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: post.commentText
-        }),
-      });
-
-      if (response.ok) {
-        const newComment: Comment = {
-          _id: Date.now().toString(),
-          content: post.commentText,
-          timeAgo: 'Just now'
-        };
-
-        setAnonymousPosts(anonymousPosts.map(p => {
-          if (p._id === postId) {
-            return {
-              ...p,
-              comments: [...p.comments, newComment],
-              commentText: ''
-            };
-          }
-          return p;
-        }));
-      }
-    } catch (error) {
-      console.error('Error submitting comment:', error);
-      Alert.alert('Error', 'Failed to submit comment');
+  const openWhatsApp = async () => {
+    const phoneNumber = '7023187244';
+    const message = 'Hello, I need help with FitStreak app';
+    const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+    
+    const supported = await Linking.canOpenURL(whatsappUrl);
+    if (supported) {
+      await Linking.openURL(whatsappUrl);
+    } else {
+      Alert.alert('Error', 'WhatsApp is not installed on this device.');
     }
+    
+    Alert.alert(
+      'Contact Support',
+      'You can reach our support team directly on WhatsApp at 7023187244',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open WhatsApp', onPress: () => {
+          // In a real app: Linking.openURL(whatsappUrl).catch(() => {
+          //   Alert.alert('Error', 'WhatsApp is not installed');
+          // });
+          Alert.alert('WhatsApp', 'This would open WhatsApp in a real app');
+        }}
+      ]
+    );
   };
-
-  const renderPostItem = ({ item }: { item: AnonymousPost }) => (
-    <View style={styles.postCard}>
-      <Text style={styles.postContent}>{item.Content}</Text>
-      
-      {item.image && (
-        <Image 
-          source={{ uri: item.image }} 
-          style={styles.postImage}
-          resizeMode="cover"
-        />
-      )}
-      
-      <View style={styles.postFooter}>
-        <Text style={styles.postTimestamp}>{item.timeAgo}</Text>
-        <View style={styles.postActions}>
-          <TouchableOpacity 
-            style={styles.postAction}
-            onPress={() => toggleLike(item._id)}
-          >
-            <Text>💪</Text>
-            <Text style={[styles.postActionText, item.isLiked && { color: "#FF5252" }]}>
-              {item.Biceps}
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.postAction}
-            onPress={() => toggleComments(item._id)}
-          >
-            <Text>💬</Text>
-            <Text style={styles.postActionText}>
-              {item.comments}
-            </Text>
-          </TouchableOpacity>
-          
-          <View style={styles.postAction}>
-            <Text>🔥</Text>
-            <Text style={styles.postActionText}>
-              {item.Fire}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Comments Section */}
-      {item.showComments && (
-        <View style={styles.commentsSection}>
-          {/* Comments List */}
-          {item.comments.map((comment) => (
-            <View key={comment._id} style={styles.commentItem}>
-              <View style={styles.commentAvatar}>
-                <Text style={styles.commentAvatarText}>👤</Text>
-              </View>
-              <View style={styles.commentContent}>
-                <Text style={styles.commentText}>{comment.content}</Text>
-                <Text style={styles.commentTime}>{comment.timeAgo}</Text>
-              </View>
-            </View>
-          ))}
-          
-          {/* Add Comment Input */}
-          <View style={styles.addCommentContainer}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Add a comment..."
-              placeholderTextColor="#888"
-              value={item.commentText}
-              onChangeText={(text) => handleCommentChange(item._id, text)}
-              multiline
-            />
-            <TouchableOpacity 
-              style={[
-                styles.commentSubmitButton,
-                !item.commentText.trim() && styles.commentSubmitButtonDisabled
-              ]}
-              onPress={() => submitComment(item._id)}
-              disabled={!item.commentText.trim()}
-            >
-              <Text style={styles.commentSubmitText}>Post</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-    </View>
-  );
 
   return (
     <View style={styles.container}>
@@ -524,9 +252,9 @@ const FitStreakProfile = () => {
           <View style={styles.profileMain}>
             <View style={styles.avatarContainer}>
               <Image
-                  source={badgeImages[currentBadge]}
-                  style={[styles.badgeImage, { tintColor: '#00C896' }]}
-                />
+                source={badgeImages[currentBadge]}
+                style={[styles.badgeImage, { tintColor: '#00ff9d' }]}
+              />
             </View>
             
             {editMode ? (
@@ -535,35 +263,30 @@ const FitStreakProfile = () => {
                 value={name}
                 onChangeText={setName}
                 autoFocus
+                placeholder="Enter your name"
+                placeholderTextColor="#888"
               />
             ) : (
               <Text style={styles.userName}>{name}</Text>
             )}
             
             <View style={styles.userLevel}>
-              <FontAwesome name="trophy" size={14} color="#00C896" />
+              <FontAwesome name="trophy" size={14} color="#00ff9d" />
               <Text style={styles.levelText}>{level}</Text>
             </View>
             
             <TouchableOpacity
               style={styles.editProfileButton}
               onPress={editMode ? handleSaveProfile : handleEditProfile}
-              disabled={isUpdatingProfile}
             >
-              {isUpdatingProfile ? (
-                <ActivityIndicator size="small" color="#F5F5F5" />
-              ) : (
-                <>
-                  <FontAwesome
-                    name={editMode ? 'check' : 'pencil'}
-                    size={14}
-                    color="#F5F5F5"
-                  />
-                  <Text style={styles.editProfileText}>
-                    {editMode ? 'Save Profile' : 'Edit Profile'}
-                  </Text>
-                </>
-              )}
+              <FontAwesome
+                name={editMode ? 'check' : 'pencil'}
+                size={14}
+                color="#F5F5F5"
+              />
+              <Text style={styles.editProfileText}>
+                {editMode ? 'Save Profile' : 'Edit Profile'}
+              </Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -575,68 +298,117 @@ const FitStreakProfile = () => {
             <Text style={styles.statLabel}>Day Streak</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{PostCount}</Text>
-            <Text style={styles.statLabel}>Anonymous Post</Text>
+            <Text style={styles.statValue}>{fitCoins}</Text>
+            <Text style={styles.statLabel}>FitCoins</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{badges}</Text>
             <Text style={styles.statLabel}>Badges</Text>
           </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{PostCount}</Text>
+            <Text style={styles.statLabel}>Posts</Text>
+          </View>
         </View>
 
-        {/* Anonymous Post Section */}
+        {/* Quick Actions */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Anonymous Community</Text>
-            <TouchableOpacity onPress={() => setShowPostModal(true)}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('/Community')}
+            >
               <LinearGradient
-                colors={['#00C896', '#00A8FF']}
-                style={styles.createPostButton}
+                colors={['#00ff9d', '#00a8ff']}
+                style={styles.actionGradient}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+                end={{ x: 1, y: 1 }}
               >
-                <Feather name="plus" size={16} color="#F5F5F5" />
-                <Text style={styles.createPostButtonText}>New Post</Text>
+                <MaterialCommunityIcons name="account-group" size={24} color="#F5F5F5" />
+                <Text style={styles.actionText}>Community</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => setShowHelpModal(true)}
+            >
+              <LinearGradient
+                colors={['#ff7b25', '#ff5252']}
+                style={styles.actionGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="help-circle" size={24} color="#F5F5F5" />
+                <Text style={styles.actionText}>Get Help</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={openWhatsApp}
+            >
+              <LinearGradient
+                colors={['#25d366', '#128c7e']}
+                style={styles.actionGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="logo-whatsapp" size={24} color="#F5F5F5" />
+                <Text style={styles.actionText}>Support</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('/')}
+            >
+              <LinearGradient
+                colors={['#00a8ff', '#0097e6']}
+                style={styles.actionGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="home" size={24} color="#F5F5F5" />
+                <Text style={styles.actionText}>Home</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
-          
-          {isLoadingPosts ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#00C896" />
-            </View>
-          ) : anonymousPosts.length === 0 ? (
-            <View style={styles.emptyPostsContainer}>
-              <MaterialCommunityIcons name="post-outline" size={40} color="#888" />
-              <Text style={styles.emptyPostsText}>No posts yet</Text>
-              <TouchableOpacity 
-                style={styles.emptyPostsButton}
-                onPress={() => setShowPostModal(true)}
-              >
-                <Text style={styles.emptyPostsButtonText}>Create your first post</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <FlatList
-              data={anonymousPosts}
-              renderItem={renderPostItem}
-              keyExtractor={item => item._id.toString()}
-              scrollEnabled={false}
-              contentContainerStyle={styles.postsList}
-            />
-          )}
         </View>
 
+        {/* Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Settings</Text>
-          
+          <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.settingsList}>
+            <TouchableOpacity
+              style={styles.settingsItem}
+              onPress={() => router.push('/Community')}
+            >
+              <View style={[styles.settingsIcon, { backgroundColor: 'rgba(0, 255, 157, 0.1)' }]}>
+                <MaterialCommunityIcons name="incognito" size={20} color="#00ff9d" />
+              </View>
+              <Text style={styles.settingsText}>My Community Posts</Text>
+              <FontAwesome name="chevron-right" size={12} color="#888" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsItem}
+              onPress={() => setShowHelpModal(true)}
+            >
+              <View style={[styles.settingsIcon, { backgroundColor: 'rgba(255, 123, 37, 0.1)' }]}>
+                <Ionicons name="help-buoy" size={20} color="#ff7b25" />
+              </View>
+              <Text style={styles.settingsText}>Help & Support</Text>
+              <FontAwesome name="chevron-right" size={12} color="#888" />
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.settingsItem}
               onPress={handleLogout}
             >
-              <View style={styles.settingsIcon}>
-                <FontAwesome name="sign-out" size={16} color="#FF5252" />
+              <View style={[styles.settingsIcon, { backgroundColor: 'rgba(255, 82, 82, 0.1)' }]}>
+                <FontAwesome name="sign-out" size={18} color="#FF5252" />
               </View>
               <Text style={[styles.settingsText, { color: '#FF5252' }]}>Logout</Text>
               <FontAwesome name="chevron-right" size={12} color="#FF5252" />
@@ -645,139 +417,89 @@ const FitStreakProfile = () => {
         </View>
       </ScrollView>
 
-      {/* Wallet Modal */}
+      {/* Help Modal */}
       <Modal
-        visible={showWalletModal}
+        visible={showHelpModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowWalletModal(false)}
+        onRequestClose={() => setShowHelpModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {walletAction === 'convert' ? 'Convert FitCoins' : 'Add FitCoins'}
-            </Text>
-            
-            {walletAction === 'convert' ? (
-              <>
-                <Text style={styles.modalText}>
-                  Convert your FitCoins to real money (100 FC = ₹10)
-                </Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Get Help & Support</Text>
+              <TouchableOpacity onPress={() => setShowHelpModal(false)}>
+                <Ionicons name="close" size={24} color="#F5F5F5" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.helpForm}>
+              <Text style={styles.helpDescription}>
+                Having issues with the app? Fill out the form below and our support team will get back to you within 24 hours.
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Problem Title *</Text>
                 <TextInput
-                  style={styles.modalInput}
-                  placeholder="Amount to convert"
-                  keyboardType="numeric"
-                  value={convertAmount}
-                  onChangeText={setConvertAmount}
+                  style={styles.textInput}
+                  placeholder="Brief description of your issue"
+                  placeholderTextColor="#888"
+                  value={helpTitle}
+                  onChangeText={setHelpTitle}
                 />
-                <Text style={styles.balanceText}>
-                  Available: {fitCoins.toLocaleString()} FC
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.modalText}>
-                  Add FitCoins to your wallet by completing challenges or purchasing
-                </Text>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Detailed Description *</Text>
                 <TextInput
-                  style={styles.modalInput}
-                  placeholder="Amount to add"
-                  keyboardType="numeric"
-                  value={addAmount}
-                  onChangeText={setAddAmount}
+                  style={[styles.textInput, styles.textArea]}
+                  placeholder="Please describe your issue in detail..."
+                  placeholderTextColor="#888"
+                  value={helpDescription}
+                  onChangeText={setHelpDescription}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
                 />
-              </>
-            )}
-            
+              </View>
+
+              <View style={styles.contactInfo}>
+                <Text style={styles.contactTitle}>Direct Support</Text>
+                <TouchableOpacity 
+                  style={styles.whatsappButton}
+                  onPress={openWhatsApp}
+                >
+                  <Ionicons name="logo-whatsapp" size={20} color="#25d366" />
+                  <Text style={styles.whatsappText}>Chat on WhatsApp: 7023187244</Text>
+                </TouchableOpacity>
+                <Text style={styles.contactNote}>
+                  For urgent issues, contact us directly on WhatsApp for faster response.
+                </Text>
+              </View>
+            </ScrollView>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowWalletModal(false)}
+                onPress={() => setShowHelpModal(false)}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton]}
-                onPress={executeWalletAction}
+                style={[styles.modalButton, styles.submitButton]}
+                onPress={handleHelpSubmit}
+                disabled={isSubmittingHelp || !helpTitle.trim() || !helpDescription.trim()}
               >
-                <Text style={styles.confirmButtonText}>
-                  {walletAction === 'convert' ? 'Convert' : 'Add'}
-                </Text>
+                {isSubmittingHelp ? (
+                  <ActivityIndicator size="small" color="#F5F5F5" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit Request</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
-      {/* Post Creation Modal */}
-      <Modal
-        visible={showPostModal}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setShowPostModal(false)}
-      >
-        <View style={styles.postModalContainer}>
-          <View style={styles.postModalHeader}>
-            <TouchableOpacity onPress={() => setShowPostModal(false)}>
-              <Ionicons name="close" size={24} color="#F5F5F5" />
-            </TouchableOpacity>
-            <Text style={styles.postModalTitle}>Create Anonymous Post</Text>
-            <TouchableOpacity 
-              onPress={handlePostSubmit}
-              disabled={isPosting}
-            >
-              {isPosting ? (
-                <ActivityIndicator size="small" color="#00C896" />
-              ) : (
-                <Text style={styles.postSubmitButton}>Post</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.postInputContainer}>
-            <TextInput
-              style={styles.postInput}
-              placeholder="Share your fitness journey anonymously..."
-              placeholderTextColor="#888"
-              multiline
-              value={postContent}
-              onChangeText={setPostContent}
-            />
-            
-            {postImage && (
-              <View style={styles.postImagePreviewContainer}>
-                <Image
-                  source={{ uri: postImage }}
-                  style={styles.postImagePreview}
-                  resizeMode="contain"
-                />
-                <TouchableOpacity 
-                  style={styles.removeImageButton}
-                  onPress={removeImage}
-                >
-                  <Ionicons name="close" size={20} color="#F5F5F5" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-          
-          <View style={styles.postActionsBar}>
-            <TouchableOpacity 
-              style={styles.postActionButton}
-              onPress={pickImage}
-            >
-              <Feather name="image" size={20} color="#00C896" />
-              <Text style={styles.postActionText}>Add Image</Text>
-            </TouchableOpacity>
-            
-            <View style={styles.postPrivacyInfo}>
-              <MaterialCommunityIcons name="incognito" size={16} color="#00C896" />
-              <Text style={styles.postPrivacyText}>This post will be anonymous</Text>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
     </View>
   );
 };
@@ -816,6 +538,7 @@ const styles = StyleSheet.create({
   },
   profileMain: {
     alignItems: 'center',
+    marginTop: 10,
   },
   avatarContainer: {
     marginBottom: 15,
@@ -827,7 +550,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
     borderRadius: 50,
     borderWidth: 3,
-    borderColor: '#06876788',
+    borderColor: '#00ff9d88',
   },
   userName: {
     fontSize: 24,
@@ -837,23 +560,26 @@ const styles = StyleSheet.create({
   },
   editInput: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    padding: 8,
-    borderRadius: 8,
+    padding: 12,
+    borderRadius: 12,
     color: '#F5F5F5',
     textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '600',
+    width: '80%',
   },
   userLevel: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(0, 200, 150, 0.1)',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0, 255, 157, 0.1)',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
     borderRadius: 20,
     marginBottom: 15,
   },
   levelText: {
-    color: '#00C896',
+    color: '#00ff9d',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -863,9 +589,10 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: '#888',
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   editProfileText: {
     color: '#F5F5F5',
@@ -882,577 +609,209 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: '#1E1E1E',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 15,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#00C896',
+    color: '#00ff9d',
     marginBottom: 5,
   },
   statLabel: {
     fontSize: 12,
     color: '#888',
+    fontWeight: '500',
   },
   section: {
     marginHorizontal: 20,
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 25,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#F5F5F5',
-    marginBottom: 20,
-  },
-  viewAll: {
-    fontSize: 14,
-    color: '#888',
-  },
-  removeBuddyText: {
-    fontSize: 14,
-    color: '#FF5252',
-    marginLeft: 15,
-  },
-  buddyActionButtons: {
-    flexDirection: 'row',
-  },
-  createPostButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-  },
-  createPostButtonText: {
-    color: '#F5F5F5',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  card: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 12,
-    padding: 15,
     marginBottom: 15,
   },
-  cardHeader: {
+  actionsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  cardTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cardTitleText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#F5F5F5',
-  },
-  cardStatus: {
-    backgroundColor: 'rgba(0, 200, 150, 0.1)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 20,
-  },
-  cardStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#00C896',
-  },
-  walletBalance: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginVertical: 15,
-    color: '#00C896',
-  },
-  walletActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  walletButton: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  primaryButton: {
-    backgroundColor: '#00C896',
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-  },
-  buttonText: {
-    fontWeight: '600',
-  },
-  buddyInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-  },
-  buddyAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: '#0084FF',
-  },
-  buddyName: {
-    fontWeight: '600',
-    color: '#F5F5F5',
-    marginBottom: 5,
-  },
-  buddyStreak: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  buddyStreakText: {
-    fontSize: 13,
-    color: '#888',
-  },
-  progressContainer: {
-    marginVertical: 15,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 3,
+  actionCard: {
+    width: (width - 64) / 2,
+    height: 100,
+    borderRadius: 16,
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#00C896',
+  actionGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
   },
-  contractInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  contractLabel: {
-    color: '#888',
-    fontSize: 14,
-  },
-  contractValue: {
+  actionText: {
     color: '#F5F5F5',
     fontSize: 14,
-  },
-  contractDetails: {
-    marginTop: 15,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#2A2A2A',
-  },
-  detailText: {
-    color: '#F5F5F5',
-    marginBottom: 8,
-    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 8,
+    textAlign: 'center',
   },
   settingsList: {
     backgroundColor: '#1E1E1E',
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   settingsItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2A2A',
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   settingsIcon: {
-    width: 20,
-    marginRight: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 15,
   },
   settingsText: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     color: '#F5F5F5',
+    fontWeight: '500',
   },
-  logoutItem: {
-    color: '#FF5252',
-  },
+  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
     backgroundColor: '#1E1E1E',
-    borderRadius: 16,
+    borderRadius: 20,
+    width: '100%',
+    maxHeight: '80%',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
-    width: width * 0.9,
-    maxHeight: height * 0.8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#F5F5F5',
-    marginBottom: 10,
   },
-  modalText: {
+  helpForm: {
+    padding: 20,
+  },
+  helpDescription: {
     color: '#888',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  inputGroup: {
     marginBottom: 20,
   },
-  modalInput: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 8,
-    padding: 12,
+  inputLabel: {
     color: '#F5F5F5',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  textInput: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    padding: 15,
+    color: '#F5F5F5',
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  textArea: {
+    height: 120,
+    textAlignVertical: 'top',
+  },
+  contactInfo: {
+    backgroundColor: 'rgba(0, 255, 157, 0.05)',
+    borderRadius: 12,
+    padding: 15,
+    marginTop: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#00ff9d',
+  },
+  contactTitle: {
+    color: '#00ff9d',
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: 10,
   },
-  balanceText: {
+  whatsappButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    backgroundColor: 'rgba(37, 211, 102, 0.1)',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  whatsappText: {
+    color: '#25d366',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  contactNote: {
     color: '#888',
     fontSize: 12,
-    marginBottom: 20,
+    fontStyle: 'italic',
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 10,
+    padding: 20,
+    paddingTop: 10,
+    gap: 12,
   },
   modalButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    height: 50,
-    backgroundColor: '#a61616ff',
+    padding: 15,
+    borderRadius: 12,
     alignItems: 'center',
-    color: '#F5F5F5',
+    justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: '#764646ff',
-    height: 80,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
-  confirmButton: {
-    backgroundColor: '#00C896',
-    height: 80,
+  submitButton: {
+    backgroundColor: '#00ff9d',
   },
   cancelButtonText: {
     color: '#F5F5F5',
-    fontWeight: '600',
-  },
-  confirmButtonText: {
-    color: '#F5F5F5',
-    fontWeight: '600',
-  },
-  buddyList: {
-    maxHeight: height * 0.4,
-    marginBottom: 20,
-  },
-  buddyOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A2A2A',
-  },
-  buddyOptionAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 15,
-  },
-  buddyOptionName: {
-    color: '#F5F5F5',
     fontSize: 16,
-  },
-  // Post related styles
-  postsList: {
-    gap: 15,
-  },
-  postCard: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  anonymousAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  anonymousName: {
-    color: '#F5F5F5',
     fontWeight: '600',
   },
-  postImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 15,
-  },
-  postContent: {
-    color: '#F5F5F5',
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 15,
-  },
-  postFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  postTimestamp: {
-    color: '#888',
-    fontSize: 12,
-  },
-  postActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  postAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  loadingContainer: {
-    height: 200,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyPostsContainer: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 12,
-    padding: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyPostsText: {
-    color: '#888',
-    fontSize: 16,
-    marginVertical: 10,
-  },
-  emptyPostsButton: {
-    backgroundColor: '#00C896',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    marginTop: 15,
-  },
-  emptyPostsButtonText: {
+  submitButtonText: {
     color: '#121212',
-    fontWeight: '600',
-  },
-  // Comments Styles
-  commentsSection: {
-    marginTop: 15,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#2A2A2A',
-  },
-  commentItem: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  commentAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#2A2A2A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  commentAvatarText: {
-    fontSize: 12,
-  },
-  commentContent: {
-    flex: 1,
-    backgroundColor: '#2A2A2A',
-    padding: 10,
-    borderRadius: 12,
-  },
-  commentText: {
-    color: '#F5F5F5',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  commentTime: {
-    color: '#888',
-    fontSize: 11,
-  },
-  addCommentContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  commentInput: {
-    flex: 1,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    color: '#F5F5F5',
-    marginRight: 10,
-    fontSize: 14,
-  },
-  commentSubmitButton: {
-    backgroundColor: '#00C896',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  commentSubmitButtonDisabled: {
-    backgroundColor: '#2A2A2A',
-  },
-  commentSubmitText: {
-    color: '#121212',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  // Post Modal Styles
-  postModalContainer: {
-    flex: 1,
-    backgroundColor: '#121212',
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-  },
-  postModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2A2A2A',
-  },
-  postModalTitle: {
-    color: '#F5F5F5',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  postSubmitButton: {
-    color: '#00C896',
     fontSize: 16,
     fontWeight: '600',
-  },
-  postInputContainer: {
-    flex: 1,
-    padding: 15,
-  },
-  postInput: {
-    color: '#F5F5F5',
-    fontSize: 16,
-    lineHeight: 24,
-    textAlignVertical: 'top',
-    minHeight: 100,
-  },
-  postImagePreviewContainer: {
-    marginTop: 0,
-    borderRadius: 8,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  postImagePreview: {
-    width: '100%',
-    height: '100%',
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  postActionsBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    borderTopWidth: 1,
-    backgroundColor: '#000000',
-    borderTopColor: '#2A2A2A',
-  },
-  postActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    padding: 8,
-  },
-  postActionText: {
-    color: '#00C896',
-    fontSize: 14,
-  },
-  postPrivacyInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  postPrivacyText: {
-    color: '#888',
-    fontSize: 12,
-  },
-  noBuddyContainer: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noBuddyText: {
-    color: '#F5F5F5',
-    fontSize: 16,
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  addBuddyButton: {
-    backgroundColor: '#00C896',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  BuddyModalButton:{
-    backgroundColor: '#00C896',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    marginBottom: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buddySearchInput: {
-    backgroundColor: '#282828ff',
-    borderRadius: 10,
-    color: '#F5F5F5',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-  },
-  modalCancelButton: {
-    backgroundColor: '#FF5252',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBuddyButtonText: {
-    color: '#121212',
-    fontWeight: 'bold',
   },
 });
 

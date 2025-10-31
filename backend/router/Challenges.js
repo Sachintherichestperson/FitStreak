@@ -10,6 +10,7 @@ const isloggedin = require('../middleware/isloggein');
 const Proofmongo = require('../models/Proofmongo');
 const { sendNotification } = require('../functions/Notification')
 require('dotenv').config();
+const app = express();
 
 cloudinary.config({
     cloud_name: process.env.cloud_name,
@@ -39,7 +40,9 @@ const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
         const fileType = file.mimetype.split("/")[0];
+        console.log(fileType);
         if (fileType === "image" || fileType === "video") {
+            console.log(storage);
             cb(null, true);
         } else {
             cb(new Error("Only images and videos are allowed"), false);
@@ -371,5 +374,18 @@ router.get('/check-challenge-result/:id', isloggedin, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+app.use((err, req, res, next) => {
+  console.error("🔥 Multer/Cloudinary error caught:");
+  console.error(JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
+
+  res.status(400).json({
+    success: false,
+    message: err.message || "Upload error",
+    name: err.name || "UnknownError",
+  });
+});
+
 
 module.exports = router;

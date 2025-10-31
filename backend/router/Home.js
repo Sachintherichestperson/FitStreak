@@ -55,7 +55,6 @@ router.get('/plan',isloggedin, async (req, res) => {
     if (dietPlan) {
       const dayField = todayDayName.toLowerCase();
       todayDiet = dietPlan.days[dayField];
-      console.log(todayDiet)
       
       if (todayDiet && todayDiet.enabled) {
         totalCalories = todayDiet.totalCalories || 0;
@@ -202,9 +201,9 @@ router.get("/check-daily-checkin", isloggedin, async (req, res) => {
   try {
     const user = await Usermongo.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "User not found" 
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
       });
     }
 
@@ -214,28 +213,33 @@ router.get("/check-daily-checkin", isloggedin, async (req, res) => {
 
     if (currentTrack) {
       const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const lastCheckin = new Date(currentTrack);
+
+      const lastCheckinIST = new Date(new Date(currentTrack).getTime());
+      
+
       const isSameDay =
-        lastCheckin.getDate() === today.getDate() &&
-        lastCheckin.getMonth() === today.getMonth() &&
-        lastCheckin.getFullYear() === today.getFullYear();
+        now.getUTCFullYear() === lastCheckinIST.getUTCFullYear() &&
+        now.getUTCMonth() === lastCheckinIST.getUTCMonth() &&
+        now.getUTCDate() === lastCheckinIST.getUTCDate();
 
       alreadyCheckedIn = isSameDay;
       lastCheckinDate = currentTrack;
     }
 
     res.json({
+      success: true,
       alreadyCheckedIn,
       lastCheckinDate,
-      message: alreadyCheckedIn ? "You already checked in today ✅" : "You haven't checked in today"
+      message: alreadyCheckedIn
+        ? "You already checked in today ✅"
+        : "You haven't checked in today"
     });
 
   } catch (error) {
     console.error("check-daily-checkin error:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error checking daily checkin status" 
+    res.status(500).json({
+      success: false,
+      message: "Error checking daily checkin status"
     });
   }
 });
@@ -269,7 +273,6 @@ router.post("/save-gym-location", isloggedin, async (req, res) => {
 
     console.log('Saving user location:', user.Location);
 
-    // Validate the user document before saving
     const validationError = user.validateSync();
     if (validationError) {
       console.log('Validation error:', validationError);

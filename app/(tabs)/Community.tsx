@@ -1,9 +1,10 @@
-import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Feather, FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Animated,
     Dimensions,
     Easing,
@@ -26,36 +27,6 @@ import {
 const { width, height } = Dimensions.get('window');
 
 const FitStreakCommunity = () => {
-  const badgeImages: { [key: string]: any } = {
-      Tiger: require('../../assets/images/Tiger.png'),
-      Panther: require('../../assets/images/Panther.png'),
-      Dragon: require('../../assets/images/Dragon.png'),
-      Elephant: require('../../assets/images/Elephant.png'),
-      Goat: require('../../assets/images/Goat.png'),
-      Lion: require('../../assets/images/Lion.png'),
-      Bison: require('../../assets/images/Bison.png'),
-      Rabbit: require('../../assets/images/Rabbit.png'),
-      Phoenix: require('../../assets/images/Phoniex.png'),
-      Griffin: require('../../assets/images/Griffen.png'),
-      Beast: require('../../assets/images/Beast.png'),
-      Fox: require('../../assets/images/Fox.png'),
-      Ant: require('../../assets/images/Ant.png'),
-      Wolf: require('../../assets/images/Wolf.png'),
-      Fish: require('../../assets/images/fish.png'),
-      Cat: require('../../assets/images/Cat.png'),
-      Rhino: require('../../assets/images/Rhino.png'),
-      Frog: require('../../assets/images/Frog.png'),
-      Owl: require('../../assets/images/owl.png'),
-      Squirrel: require('../../assets/images/Squirrel.png'),
-      Horse: require('../../assets/images/Horse.png'),
-      Dog: require('../../assets/images/Dog.png'),
-      Shark: require('../../assets/images/Shark.png'),
-      Falcon: require('../../assets/images/Falcon.png'),
-      Bettle: require('../../assets/images/Bettle.png'),
-      Bear: require('../../assets/images/Bear.png'),
-      Crown: require('../../assets/images/Crown.png'),
-  };
-
   const [activeTab, setActiveTab] = useState('anonymous');
   type AnonymousPost = {
   _id: string;
@@ -82,21 +53,7 @@ const FitStreakCommunity = () => {
 };
 
   const [anonymousPosts, setAnonymousPosts] = useState<AnonymousPost[]>([]);
-
-  type LeaderboardUser = {
-    rank: number;
-    name: string;
-    streak: number;
-    badge: string;
-    emoji: string;
-    points: number;
-  };
-
-  const [leaderboardData, setLeaderboardData] = useState<LeaderboardUser[]>([]);
-  const [currentUserRank, setCurrentUserRank] = useState<LeaderboardUser | null>(null);
-  const [topPerformers, setTopPerformers] = useState([]);
   const [loading, setLoading] = useState({
-    leaderboard: true,
     community: true
   });
   const [refreshing, setRefreshing] = useState(false);
@@ -111,6 +68,12 @@ const FitStreakCommunity = () => {
   // Image modal state
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // Create Post Modal State
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [postContent, setPostContent] = useState('');
+  const [postImage, setPostImage] = useState<string | null>(null);
+  const [isPosting, setIsPosting] = useState(false);
 
   const fetchBackendData = async () => {
   try {
@@ -151,41 +114,6 @@ const FitStreakCommunity = () => {
     setLoading((prev) => ({ ...prev, community: false }));
   }
 };
-
-  const fetchLeaderboardData = async () => {
-    try {
-      const token = await AsyncStorage.getItem('Token');
-      const response = await fetch('https://backend-hbwp.onrender.com/Community/Leaderboard', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Server error: ${response.status} - ${errorText}`);
-      }
-      
-      const data = await response.json();
-      setLeaderboardData(data.leaderboard);
-      setCurrentUserRank(data.currentUserRank);
-      
-      setTopPerformers(data.leaderboard.slice(0, 5).map((user: { name: any; streak: any; emoji: string | number; }, index: number) => ({
-        id: `l${index + 1}`,
-        name: user.name,
-        streak: user.streak,
-        badge: getBadgeEmoji(index + 1),
-        badgeImage: badgeImages[user.emoji]
-      })));
-      
-    } catch (error) {
-      console.error('Error fetching leaderboard:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, leaderboard: false }));
-    }
-  };
 
   const ReactToPost = async (postId: string, reactionType: string) => {
     try {
@@ -345,25 +273,103 @@ const FitStreakCommunity = () => {
     setSelectedImage(null);
   };
 
-  const getBadgeEmoji = (rank: number) => {
-    switch(rank) {
-      case 1: return '👑';
-      case 2: return '🥈';
-      case 3: return '🥉';
-      case 4: return '🌟';
-      case 5: return '⭐';
-      default: return '🏅';
+  // Create Post Functions
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.5,
+      allowsMultipleSelection: false,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setPostImage(result.assets[0].uri);
+    }
+  };
+
+  const removeImage = () => {
+    setPostImage(null);
+  };
+
+  const handlePostSubmit = async () => {
+    const token = await AsyncStorage.getItem('Token');
+
+    if (!postContent.trim() && !postImage) {
+      Alert.alert('Error', 'Please add some content or image to your post');
+      return;
+    }
+
+    setIsPosting(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('Content', postContent);
+
+      if (postImage) {
+        formData.append('image', {
+          uri: postImage,
+          type: 'image/jpeg',
+          name: 'post-image.jpg',
+        } as any);
+      }
+
+      const response = await fetch('https://backend-hbwp.onrender.com/Profile/Create-Post', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        const newPost: AnonymousPost = {
+          _id: data.post?._id || `temp-${Date.now()}`,
+          Content: postContent,
+          Image: data.post?.Image || postImage || undefined,
+          timeAgo: 'Just Now',
+          Biceps: [],
+          Fire: [],
+          Boring: [],
+          Comments: [],
+          bicepsAnim: new Animated.Value(1),
+          fireAnim: new Animated.Value(1),
+          boringAnim: new Animated.Value(1),
+          userReactions: {
+            Biceps: false,
+            Fire: false,
+            Boring: false
+          }
+        };
+
+        setAnonymousPosts([newPost, ...anonymousPosts]);
+        setPostContent('');
+        setPostImage(null);
+        setShowPostModal(false);
+        Alert.alert('Success', 'Your anonymous post has been shared!');
+      } else {
+        throw new Error(data.message || 'Failed to create post');
+      }
+    } catch (error) {
+      console.error('Error creating post:', error);
+      Alert.alert('Error', 'Failed to create post');
+    } finally {
+      setIsPosting(false);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      if (activeTab === 'anonymous') {
-        await fetchBackendData();
-      } else if (activeTab === 'leaders') {
-        await fetchLeaderboardData();
-      }
+      await fetchBackendData();
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -372,20 +378,8 @@ const FitStreakCommunity = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'anonymous') {
-      fetchBackendData();
-    } else if (activeTab === 'leaders') {
-      fetchLeaderboardData();
-    }
-  }, [activeTab]);
-
-  const teamsData = [
-    { id: 't1', name: 'Team Alpha', rank: '🥇', avg: 63, members: 12 },
-    { id: 't2', name: 'Iron Legion', rank: '🥈', avg: 57, members: 8 },
-    { id: 't3', name: 'FitFam', rank: '🥉', avg: 49, members: 15 },
-    { id: 't4', name: 'Gym Rats', rank: '4', avg: 42, members: 10 },
-    { id: 't5', name: 'Cardio Kings', rank: '5', avg: 38, members: 7 },
-  ];
+    fetchBackendData();
+  }, []);
 
   const renderAnonymousPost = ({ item }: { item: any }) => {
     const bicepsStyle = {
@@ -454,18 +448,6 @@ const FitStreakCommunity = () => {
                 🔥 { item.Fire?.length || 0 }
               </Animated.Text>
             </TouchableOpacity>
-            {/* <TouchableOpacity
-              style={styles.reactionBtn}
-              onPress={() => ReactToPost(item._id, 'Boring')}
-            >
-              <Animated.Text style={[
-                styles.reactionText,
-                boringStyle,
-                item.userReactions.Boring && styles.activeReactionText
-              ]}>
-                😴 { item.Boring?.length || 0 }
-              </Animated.Text>
-            </TouchableOpacity> */}
             
             {/* Comment Button */}
             <TouchableOpacity
@@ -516,50 +498,74 @@ const FitStreakCommunity = () => {
     </Modal>
   );
 
-  const renderTopPerformer = ({ item }: { item: { id: string; name: string; streak: number; badge: string; badgeImage?: any } }) => (
-    <View style={styles.leaderCard}>
-      <View style={styles.leaderAvatar}>
-        {item.badgeImage ? (
-          <Image 
-            source={item.badgeImage} 
-            style={[styles.badgeImage, { tintColor: '#009e76b3' }]}
-            resizeMode="contain"
+  const CreatePostModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={false}
+      visible={showPostModal}
+      onRequestClose={() => setShowPostModal(false)}
+    >
+      <View style={styles.postModalContainer}>
+        <View style={styles.postModalHeader}>
+          <TouchableOpacity onPress={() => setShowPostModal(false)}>
+            <Ionicons name="close" size={24} color="#F5F5F5" />
+          </TouchableOpacity>
+          <Text style={styles.postModalTitle}>Create Anonymous Post</Text>
+          <TouchableOpacity 
+            onPress={handlePostSubmit}
+            disabled={isPosting}
+          >
+            {isPosting ? (
+              <ActivityIndicator size="small" color="#00ff9d" />
+            ) : (
+              <Text style={styles.postSubmitButton}>Post</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.postInputContainer}>
+          <TextInput
+            style={styles.postInput}
+            placeholder="Share your fitness journey anonymously..."
+            placeholderTextColor="#888"
+            multiline
+            value={postContent}
+            onChangeText={setPostContent}
           />
-        ) : (
-          <Text>{item.badge}</Text>
-        )}
-      </View>
-      <Text style={styles.leaderName}>{item.name}</Text>
-      <Text style={styles.leaderStats}>🔥 {item.streak} Days</Text>
-      <Text style={styles.leaderBadge}>{item.badge}</Text>
-    </View>
-  );
-
-  const renderLeaderboardRow = ({ item }: { item: LeaderboardUser }) => (
-    <View style={styles.tableRow}>
-      <Text style={[styles.cellRank, item.rank === 1 && styles.goldRank, item.rank === 2 && styles.silverRank, item.rank === 3 && styles.bronzeRank]}>
-        {item.rank}
-      </Text>
-      <View style={styles.cellUser}>
-        <View style={styles.userAvatar}>
-          {badgeImages[item.emoji] ? (
-            <Image 
-              source={badgeImages[item.emoji]} 
-              style={styles.badgeImageSmall}
-              resizeMode="contain"
-            />
-          ) : (
-            <Text>{item.emoji}</Text>
+          
+          {postImage && (
+            <View style={styles.postImagePreviewContainer}>
+              <Image
+                source={{ uri: postImage }}
+                style={styles.postImagePreview}
+                resizeMode="contain"
+              />
+              <TouchableOpacity 
+                style={styles.removeImageButton}
+                onPress={removeImage}
+              >
+                <Ionicons name="close" size={20} color="#F5F5F5" />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{item.name}</Text>
-          <Text style={styles.userBadge}>{item.badge}</Text>
+        
+        <View style={styles.postActionsBar}>
+          <TouchableOpacity 
+            style={styles.postActionButton}
+            onPress={pickImage}
+          >
+            <Feather name="image" size={20} color="#00ff9d" />
+            <Text style={styles.postActionText}>Add Image</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.postPrivacyInfo}>
+            <MaterialCommunityIcons name="incognito" size={16} color="#00ff9d" />
+            <Text style={styles.postPrivacyText}>This post will be anonymous</Text>
+          </View>
         </View>
       </View>
-      <Text style={styles.cellStreak}>🔥 {item.streak}d</Text>
-      <Text style={styles.cellPoints}>{item.points.toLocaleString()}</Text>
-    </View>
+    </Modal>
   );
 
   const CommentModal = () => {
@@ -717,68 +723,17 @@ const FitStreakCommunity = () => {
     );
   };
 
-  const LeadersSection = () => {
-    if (loading.leaderboard) {
-      return (
-        <View style={styles.tabContent}>
-          <Text style={styles.sectionTitle}>Top Performers</Text>
-          <ActivityIndicator size="large" color="#00ff9d" style={styles.loadingIndicator} />
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.tabContent}>
-        <Text style={styles.sectionTitle}>Top Performers</Text>
-        <FlatList
-          data={topPerformers}
-          renderItem={renderTopPerformer}
-          keyExtractor={item => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.leadersContainer}
-        />
-        
-        <View style={styles.leaderboardTable}>
-          <View style={styles.tableHeader}>
-            <Text style={styles.headerRank}>Rank</Text>
-            <Text style={styles.headerUser}>User</Text>
-            <Text style={styles.headerStreak}>Streak</Text>
-            <Text style={styles.headerPoints}>Points</Text>
-          </View>
-          
-          {currentUserRank && currentUserRank.rank > 10 && (
-            <View style={[styles.tableRow, styles.currentUserRow]}>
-              <Text style={[styles.cellRank, styles.currentUserRank]}>{currentUserRank.rank}</Text>
-              <View style={styles.cellUser}>
-                <View style={styles.userAvatar}>
-                  <Text>{currentUserRank.emoji}</Text>
-                </View>
-                <View style={styles.userInfo}>
-                  <Text style={[styles.userName, styles.currentUserName]}>{currentUserRank.name} (You)</Text>
-                  <Text style={styles.userBadge}>{currentUserRank.badge}</Text>
-                </View>
-              </View>
-              <Text style={styles.cellStreak}>🔥 {currentUserRank.streak}d</Text>
-              <Text style={styles.cellPoints}>{currentUserRank.points.toLocaleString()}</Text>
-            </View>
-          )}
-          
-          <FlatList
-            data={leaderboardData}
-            renderItem={renderLeaderboardRow}
-            keyExtractor={item => `lb${item.rank}`}
-            scrollEnabled={false}
-          />
-        </View>
-      </View>
-    );
-  };
-
   const AnonymousSection = () => (
     <View style={styles.tabContent}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Anonymous Zone</Text>
+        <TouchableOpacity 
+          style={styles.createPostButton}
+          onPress={() => setShowPostModal(true)}
+        >
+          <Feather name="plus" size={16} color="#F5F5F5" />
+          <Text style={styles.createPostButtonText}>New Post</Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.sectionDescription}>
@@ -786,6 +741,17 @@ const FitStreakCommunity = () => {
       </Text>
       {loading.community ? (
         <ActivityIndicator size="large" color="#00ff9d" style={styles.loadingIndicator} />
+      ) : anonymousPosts.length === 0 ? (
+        <View style={styles.emptyPostsContainer}>
+          <MaterialCommunityIcons name="post-outline" size={40} color="#888" />
+          <Text style={styles.emptyPostsText}>No posts yet</Text>
+          <TouchableOpacity 
+            style={styles.emptyPostsButton}
+            onPress={() => setShowPostModal(true)}
+          >
+            <Text style={styles.emptyPostsButtonText}>Create your first post</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={anonymousPosts}
@@ -805,26 +771,8 @@ const FitStreakCommunity = () => {
         <View style={styles.communityHeader}>
           <View>
             <Text style={styles.communityTitle}>FitStreak Community</Text>
-            <Text style={styles.communitySubtitle}>Connect • Compete • Grow</Text>
+            <Text style={styles.communitySubtitle}>Connect • Share • Grow</Text>
           </View>
-        </View>
-
-        <View style={styles.sectionTabs}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'anonymous' && styles.activeTab]}
-            onPress={() => setActiveTab('anonymous')}
-          >
-            <MaterialCommunityIcons name="incognito" size={18} color={activeTab === 'anonymous' ? '#00ff9d' : '#777'} />
-            <Text style={[styles.tabText, activeTab === 'anonymous' && styles.activeTabText]}>Anonymous</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'leaders' && styles.activeTab]}
-            onPress={() => setActiveTab('leaders')}
-          >
-            <FontAwesome name="trophy" size={18} color={activeTab === 'leaders' ? '#00ff9d' : '#777'} />
-            <Text style={[styles.tabText, activeTab === 'leaders' && styles.activeTabText]}>Leaders</Text>
-          </TouchableOpacity>
         </View>
 
         <ScrollView 
@@ -839,12 +787,20 @@ const FitStreakCommunity = () => {
             />
           }
         >
-          {activeTab === 'anonymous' && <AnonymousSection />}
-          {activeTab === 'leaders' && <LeadersSection />}
+          <AnonymousSection />
         </ScrollView>
+
+        {/* Floating Create Post Button */}
+        <TouchableOpacity 
+          style={styles.floatingCreateButton}
+          onPress={() => setShowPostModal(true)}
+        >
+          <Feather name="plus" size={24} color="#F5F5F5" />
+        </TouchableOpacity>
 
         <CommentModal />
         <ImageModal />
+        <CreatePostModal />
       </ImageBackground>
     </SafeAreaView>
   );
@@ -878,52 +834,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 0.3,
   },
-  notificationBell: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 255, 157, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ff4d4d',
-  },
-  sectionTabs: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-    paddingBottom: 10,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 7,
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#00ff9d',
-    marginBottom: -11,
-  },
-  activeTabText: {
-    color: '#00ff9d',
-    fontWeight: '600',
-  },
-  tabText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#777',
-    marginTop: 5,
-  },
   contentContainer: {
     flex: 1,
   },
@@ -947,6 +857,20 @@ const styles = StyleSheet.create({
     color: '#aaa',
     marginBottom: 20,
     lineHeight: 20,
+  },
+  createPostButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#00ff9d',
+  },
+  createPostButtonText: {
+    color: '#121212',
+    fontSize: 14,
+    fontWeight: '600',
   },
   postCard: {
     backgroundColor: '#121212',
@@ -1070,170 +994,45 @@ const styles = StyleSheet.create({
   loadingIndicator: {
     marginVertical: 30,
   },
-  leadersContainer: {
-    gap: 12,
-    paddingVertical: 5,
-    paddingBottom: 15,
-    paddingHorizontal: 5,
-  },
-  leaderCard: {
-    width: 140,
+  emptyPostsContainer: {
     backgroundColor: '#121212',
-    borderRadius: 16,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    marginRight: 10,
-  },
-  leaderAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#333',
+    borderRadius: 12,
+    padding: 30,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
-    borderWidth: 2,
-    borderColor: '#00ff9d',
   },
-  badgeImage: {
-    width: 40,
-    height: 40,
-  },
-  badgeImageSmall: {
-    width: 30,
-    height: 30,
-  },
-  leaderName: {
+  emptyPostsText: {
+    color: '#888',
     fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 5,
+    marginVertical: 10,
   },
-  leaderStats: {
-    fontSize: 13,
-    color: '#00ff9d',
-  },
-  leaderBadge: {
-    fontSize: 16,
-    position: 'absolute',
-    right: 15,
-    top: 15,
-  },
-  leaderboardTable: {
-    backgroundColor: '#121212',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    marginTop: 20,
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    padding: 15,
-    backgroundColor: 'rgba(0, 255, 157, 0.05)',
-  },
-  headerRank: {
-    width: 50,
-    color: '#00ff9d',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  headerUser: {
-    flex: 2,
-    color: '#00ff9d',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  headerStreak: {
-    flex: 1,
-    textAlign: 'right',
-    color: '#00ff9d',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  headerPoints: {
-    flex: 1,
-    textAlign: 'right',
-    color: '#00ff9d',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    padding: 15,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  currentUserRow: {
-    backgroundColor: 'rgba(0, 255, 157, 0.1)',
-    borderLeftWidth: 3,
-    borderLeftColor: '#00ff9d',
-  },
-  cellRank: {
-    width: 50,
-    fontWeight: '700',
-    color: '#fff',
-    fontSize: 14,
-  },
-  currentUserRank: {
-    fontWeight: '800',
-    color: '#00ff9d',
-  },
-  goldRank: {
-    color: 'gold',
-  },
-  silverRank: {
-    color: 'silver',
-  },
-  bronzeRank: {
-    color: '#cd7f32',
-  },
-  cellUser: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  userAvatar: {
-    width: 40,
-    height: 40,
+  emptyPostsButton: {
+    backgroundColor: '#00ff9d',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: '#333',
+    marginTop: 15,
+  },
+  emptyPostsButtonText: {
+    color: '#121212',
+    fontWeight: '600',
+  },
+  // Floating Create Button
+  floatingCreateButton: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#00ff9d',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  userInfo: {
-    flexDirection: 'column',
-  },
-  userName: {
-    fontWeight: '600',
-    fontSize: 14,
-    color: 'white',
-  },
-  currentUserName: {
-    fontWeight: '700',
-    color: '#00ff9d',
-  },
-  userBadge: {
-    fontSize: 11,
-    color: '#00ff9d',
-    marginTop: 2,
-  },
-  cellStreak: {
-    flex: 1,
-    textAlign: 'right',
-    fontSize: 14,
-    color: '#00ff9d',
-    fontWeight: '500',
-  },
-  cellPoints: {
-    flex: 1,
-    textAlign: 'right',
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'white',
+    shadowColor: '#00ff9d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   // Enhanced Comment Modal Styles
   modalContainer: {
@@ -1393,6 +1192,90 @@ const styles = StyleSheet.create({
     color: '#777',
     fontSize: 12,
     textAlign: 'right',
+  },
+  // Create Post Modal Styles
+  postModalContainer: {
+    flex: 1,
+    backgroundColor: '#121212',
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+  },
+  postModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  postModalTitle: {
+    color: '#F5F5F5',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  postSubmitButton: {
+    color: '#00ff9d',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  postInputContainer: {
+    flex: 1,
+    padding: 15,
+  },
+  postInput: {
+    color: '#F5F5F5',
+    fontSize: 16,
+    lineHeight: 24,
+    textAlignVertical: 'top',
+    minHeight: 100,
+  },
+  postImagePreviewContainer: {
+    marginTop: 20,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  postImagePreview: {
+    width: '100%',
+    height: 200,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postActionsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    paddingBottom: 40,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  postActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    padding: 8,
+  },
+  postActionText: {
+    color: '#00ff9d',
+    fontSize: 14,
+  },
+  postPrivacyInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  postPrivacyText: {
+    color: '#888',
+    fontSize: 12,
   },
 });
 

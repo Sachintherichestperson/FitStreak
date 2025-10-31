@@ -40,7 +40,7 @@ const AppStore = () => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [fitcoins, setFitcoins] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
-  console.log(products[0])
+  console.log(products[0].fitcoinPrice);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [FITCOIN_TO_INR_RATE, setFitCoinValue] = useState(0);

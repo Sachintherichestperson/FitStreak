@@ -8,6 +8,7 @@ const { sendNotification } = require("../functions/Notification");
 const util = require('util');
 const cron = require('node-cron');
 
+
 router.get('/', async (req, res) => {
     try {
         const posts = await Postmongo.find()
@@ -40,7 +41,6 @@ router.get('/', async (req, res) => {
 
             return postData;
         });
-        console.log(postsWithTimeAgo);
 
         res.status(200).json({ posts: postsWithTimeAgo });
     } catch (err) {
@@ -98,9 +98,7 @@ async function sendLeaderboardNotifications() {
 
 cron.schedule('24 16 * * *', async () => {
   try {
-    console.log('Running LeaderBoard cron job...');
     await sendLeaderboardNotifications();
-    console.log('Leaderboard notifications sent successfully.');
   } catch (error) {
     console.error('Error in LeaderBoard cron job:', error);
   }
@@ -194,7 +192,6 @@ router.get('/Reaction/:postId', isloggedin, async (req, res) => {
 
 router.post('/Comment/:id', isloggedin, async (req, res) => {
   try {
-    console.log("H");
     const postId = req.params.id;
     const userId = req.user._id;
     const { Content } = req.body;

@@ -21,6 +21,7 @@ const isloggedin = require('./middleware/isloggein');
 const Usermongo = require('./models/User-mongo');
 const Postmongo = require('./models/post-mongo');
 const Gymmongo = require("./models/Gymmongo");
+const Helpmongo = require("./models/Helpmongo");
 
 // Importing routes
 const ChallengesRoute = require('./router/Challenges');
@@ -161,6 +162,40 @@ app.post('/refresh', (req, res) => {
 
     res.json({ token: newAccessToken });
   });
+});
+
+app.post("/Help", async (req, res) => {
+  try {
+    const { title, description, user, mobile } = req.body;
+
+    // Basic validation
+    if (!title || !description || !user || !mobile) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    const form = await Helpmongo.create({
+      title,
+      description,
+      user,
+      mobile,
+      date: new Date(),
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Help request submitted successfully",
+      data: form,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
 });
 
 app.listen(3000);
