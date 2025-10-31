@@ -173,66 +173,6 @@ const AppStore = () => {
     return Math.min(discount, product.price);
   };
 
-  const showFitcoinDialog = (product: Product) => {
-    // Calculate maximum FitCoins that can be used for this product
-    const maxUsableFitcoins = Math.min(
-      Math.floor(product.maxDiscount / FITCOIN_TO_INR_RATE), // Based on max discount
-      Math.floor(product.price / FITCOIN_TO_INR_RATE), // Can't discount more than product price
-      fitcoins,
-      product.fitcoinPrice
-    );
-
-    Alert.prompt(
-      'Use FitCoins',
-      `5 FitCoins = ₹1.65\n1 FitCoin = ₹0.33\n\nMax discount for this product: ₹${product.maxDiscount.toFixed(2)}\nYou can use up to 100 FitCoins (worth ₹${(maxUsableFitcoins * FITCOIN_TO_INR_RATE).toFixed(2)}).\n\nYour FitCoins balance: ${fitcoins}`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Apply',
-          onPress: (fitcoinsInput) => {
-            const fitcoinsToUse = parseInt(fitcoinsInput || '0', 10);
-            
-            if (isNaN(fitcoinsToUse)) {
-              Alert.alert('Invalid Input', 'Please enter a valid number of FitCoins');
-              return;
-            }
-            
-            if (fitcoinsToUse > fitcoins) {
-              Alert.alert('Not Enough FitCoins', 'You don\'t have enough FitCoins');
-              return;
-            }
-            
-            if (fitcoinsToUse > maxUsableFitcoins) {
-              Alert.alert('Max FitCoins Exceeded', `You can only use up to ${maxUsableFitcoins} FitCoins for this product (₹${product.maxDiscount.toFixed(2)} discount)`);
-              return;
-            }
-            
-            const discount = calculateDiscount(product, fitcoinsToUse);
-            const finalPrice = product.price - discount;
-            
-            Alert.alert(
-              'Discount Applied',
-              `You've used ${fitcoinsToUse} FitCoins (worth ₹${(fitcoinsToUse * FITCOIN_TO_INR_RATE).toFixed(2)}) for a discount of ₹${discount.toFixed(2)}.\n\nOriginal Price: ₹${product.price.toFixed(2)}\nFinal Price: ₹${finalPrice.toFixed(2)}`,
-              [
-                { text: 'OK', onPress: () => {
-                  // Deduct the used fitcoins
-                  setFitcoins(prev => prev - fitcoinsToUse);
-                  addToCart(product.id);
-                }}
-              ]
-            );
-          },
-        },
-      ],
-      'plain-text',
-      maxUsableFitcoins.toString(),
-      'numeric'
-    );
-  };
-
   useEffect(() => {
     fetchBackendData();
   }, []);
@@ -297,7 +237,7 @@ const AppStore = () => {
           <View style={styles.fitcoinContainer}>
             <FontAwesome name="diamond" size={12} color="#00f5ff" />
             <Text style={styles.fitcoinPrice}>
-              Use up to {item.fitcoinPrice} FitCoins
+              Use up to {item?.fitcoinPrice} FitCoins
             </Text>
           </View>
         )}
