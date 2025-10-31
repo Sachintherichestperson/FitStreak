@@ -77,7 +77,7 @@ const AppStore = () => {
         price: item.SellingPrice,
         costPrice: item.CostPrice,
         maxDiscount: item.MaxDiscount || 0,
-        fitcoinPrice: item.fitcoinPrice ?? (
+        fitcoinPrice: item?.fitcoinPrice ?? (
     FITCOIN_TO_INR_RATE && FITCOIN_TO_INR_RATE > 0
         ? Math.floor(item.MaxDiscount / FITCOIN_TO_INR_RATE)
         : 0 // fallback if rate is missing or zero

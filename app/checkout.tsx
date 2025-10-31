@@ -279,7 +279,7 @@ const BuyNow = () => {
                             <View style={styles.fitcoinContainer}>
                                 <FontAwesome name="diamond" size={16} color="#00f5ff" />
                                 <Text style={styles.fitcoinPrice}>
-                                    {product.fitcoinPrice} FitCoins
+                                    {product?.fitcoinPrice} FitCoins
                                 </Text>
                             </View>
                         </View>
