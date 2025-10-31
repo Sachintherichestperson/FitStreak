@@ -2,7 +2,6 @@
 node_modules/
 .expo/
 .expo-shared/
-dist/
 web-build/
 build/
 expo-env.d.ts
