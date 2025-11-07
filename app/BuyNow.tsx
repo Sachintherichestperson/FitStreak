@@ -207,7 +207,7 @@ const BuyNow = () => {
   // Calculate total fitcoin reward from all products
   const calculateTotalFitcoinReward = () => {
     return product.reduce((total, item) => {
-      return total + (item.product.fitcoinPrice * item.quantity);
+      return total + (item.product?.fitcoinPrice * item.quantity);
     }, 0);
   };
 

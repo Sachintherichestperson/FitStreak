@@ -258,7 +258,7 @@ const Cart = () => {
                 <View style={styles.fitcoinContainer}>
                     <FontAwesome name="diamond" size={14} color="#00f5ff" />
                     <Text style={styles.fitcoinPrice}>
-                        {item.product.fitcoinPrice} FitCoins
+                        {item.product?.fitcoinPrice} FitCoins
                     </Text>
                 </View>
                 <Text style={styles.maxDiscountText}>

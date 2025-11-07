@@ -278,6 +278,7 @@ router.get("/Proof/:id", isloggedin, async (req, res) => {
 
 router.post('/submit-proof', upload.single('proofData'), isloggedin, async (req, res) => {
   try {
+    console.log(req.file);
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
